@@ -57,6 +57,26 @@ let () = seal uv_timespec
 
 (* Stat *)
 (*
+
+typedef struct {
+  uint64_t st_dev;
+  uint64_t st_mode;
+  uint64_t st_nlink;
+  uint64_t st_uid;
+  uint64_t st_gid;
+  uint64_t st_rdev;
+  uint64_t st_ino;
+  uint64_t st_size;
+  uint64_t st_blksize;
+  uint64_t st_blocks;
+  uint64_t st_flags;
+  uint64_t st_gen;
+  uv_timespec_t st_atim;
+  uv_timespec_t st_mtim;
+  uv_timespec_t st_ctim;
+  uv_timespec_t st_birthtim;
+} uv_stat_t;
+
 uint64_t st_dev;
   uint64_t st_mode;
   uint64_t st_nlink;
@@ -89,6 +109,7 @@ let st_blocks = field uv_stat "st_blocks" uint64_t
 let st_flags = field uv_stat "st_flags" uint64_t
 let st_gen = field uv_stat "st_gen" uint64_t
 let st_atim = field uv_stat "st_atim" uv_timespec
+let st_mtim = field uv_stat "st_mtim" uv_timespec
 let st_ctim = field uv_stat "st_ctim" uv_timespec
 let st_birthtim = field uv_stat "st_birthtim" uv_timespec
 let () = seal uv_stat
@@ -108,8 +129,7 @@ let uv_fs_cb = ptr uv_fs @-> returning void
   uv_req_type type;                                                           \
   /* private */                                                               \
   void* active_queue[2];                                                      \
-  void* reserved[4];                                                          \
-  UV_REQ_PRIVATE_FIELDS          
+  UV_REQ_PRIVATE_FIELDS
 
 struct uv_fs_s {
   UV_REQ_FIELDS
@@ -142,7 +162,6 @@ struct uv_fs_s {
 let data = field uv_fs "data" (ptr void)
 let uv_req_type = field uv_fs "type" long (* TODO enum *)
 let active_queue = field uv_fs "active_queue" (array 2 (ptr void))
-let reserved = field uv_fs "reserved" (array 4 (ptr void))
 (* TODO UV_REQ_PRIVATE_FIELDS currently not defined for any platforms *)
 let fs_type = field uv_fs "fs_type" long (* TODO enum *)
 let uv_fs_uv_loop = field uv_fs "uv_fs_uv_loop" uv_loop (* TODO naming *)
