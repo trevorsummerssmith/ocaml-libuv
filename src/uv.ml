@@ -1,40 +1,6 @@
 open Ctypes
 open Foreign
 
-(*
-Examples of call back https://github.com/ocamllabs/ocaml-ctypes/blob/master/examples/fts/foreign/fts.ml
-*)
-
-(* Loop *)
-type uv_loop = unit ptr
-let uv_loop : uv_loop typ = ptr void
-
-let uv_default_loop =
-  foreign "uv_default_loop" (void @-> returning uv_loop)
-
-let uv_run =
-  foreign "uv_run" (uv_loop @-> int @-> returning int)
-(* TODO should be an enum not an int for second arg *)
-
-(* threadpool.h -- uv__work
-struct uv__work {
-  void ( *work)(struct uv__work *w);
-  void ( *done)(struct uv__work *w, int status);
-  struct uv_loop_s* loop;
-  void* wq[2];
-};
-*)
-type uv__work (* we'll keep their convention of 2 underscores? *)
-let uv__work : uv__work structure typ = structure "uv__work"
-let uv__work_work_cb = ptr uv__work @-> returning void
-let uv__work_done_cb = ptr uv__work @-> int @-> returning void
-
-let uv__work_work = field uv__work "uv__work_work" (funptr uv__work_work_cb)
-let uv__work_done = field uv__work "uv__work_done" (funptr uv__work_done_cb)
-let uv__work_loop = field uv__work "uv__work_loop" uv_loop
-let uv__work_wq = field uv__work "uv__work_wq" (array 2 (ptr void))
-let () = seal uv__work
-
 (* buffer -- TODO platform dependent uv-unix.h
 typedef struct uv_buf_t {
   char* base;
@@ -54,6 +20,53 @@ let uv_timespec : uv_timespec structure typ = structure "uv_timespec"
 let tv_sec = field uv_timespec "tv_sec" long
 let tv_nsec = field uv_timespec "tv_nsec" long
 let () = seal uv_timespec
+
+(*
+Examples of call back https://github.com/ocamllabs/ocaml-ctypes/blob/master/examples/fts/foreign/fts.ml
+*)
+
+module Loop =
+  struct
+    type uv_loop = unit ptr
+    let uv_loop : uv_loop typ = ptr void
+    type t = uv_loop
+    type run_mode = RunDefault | RunOnce | RunNoWait
+
+    let run_mode_to_int = function
+	RunDefault -> 0
+      | RunOnce -> 1
+      | RunNoWait -> 2
+
+    let default_loop () =
+      let _default_loop =
+	foreign "uv_default_loop" (void @-> returning uv_loop)
+      in
+      _default_loop ()
+
+    let run loop run_mode =
+      let f = foreign "uv_run" (uv_loop @-> int @-> returning int)
+      in
+      f loop (run_mode_to_int run_mode)
+  end
+
+(* threadpool.h -- uv__work
+struct uv__work {
+  void ( *work)(struct uv__work *w);
+  void ( *done)(struct uv__work *w, int status);
+  struct uv_loop_s* loop;
+  void* wq[2];
+};
+*)
+type uv__work (* we'll keep their convention of 2 underscores? *)
+let uv__work : uv__work structure typ = structure "uv__work"
+let uv__work_work_cb = ptr uv__work @-> returning void
+let uv__work_done_cb = ptr uv__work @-> int @-> returning void
+
+let uv__work_work = field uv__work "uv__work_work" (funptr uv__work_work_cb)
+let uv__work_done = field uv__work "uv__work_done" (funptr uv__work_done_cb)
+let uv__work_loop = field uv__work "uv__work_loop" Loop.uv_loop
+let uv__work_wq = field uv__work "uv__work_wq" (array 2 (ptr void))
+let () = seal uv__work
 
 (* Stat *)
 (*
@@ -114,80 +127,160 @@ let st_ctim = field uv_stat "st_ctim" uv_timespec
 let st_birthtim = field uv_stat "st_birthtim" uv_timespec
 let () = seal uv_stat
 
+type request_type =
+    Unknown
+   | Req
+   | Connect
+   | Write
+   | Shutdown
+   | UDPSend
+   | FS
+   | Work
+   | GetAddrInfo
+   | GetNameInfo
+   | Private
+   | Max
+
+let request_type_to_int = function
+    Unknown -> 0
+   | Req -> 1
+   | Connect -> 2
+   | Write -> 3
+   | Shutdown -> 4
+   | UDPSend -> 5
+   | FS -> 6
+   | Work -> 7
+   | GetAddrInfo -> 8
+   | GetNameInfo -> 9
+   | Private -> 10
+   | Max -> 11
+
+type fs_type =
+    Unknown
+  | Custom
+  | Open
+  | Close
+  | Read
+  | Write
+  | Sendfile
+  | Stat
+  | LState
+  | FStat
+  | FTruncate
+  | UTime
+  | FUTime
+  | Chmod
+  | FChmod
+  | FSync
+  | FDatasync
+  | Unlink
+  | Rmdir
+  | Mkdir
+  | Mkdtemp
+  | Rename
+  | Readdir
+  | Link
+  | Symlink
+  | Readlink
+  | Chown
+  | FChown
+
+let fs_type_to_int = function
+    Unknown -> -1
+  | Custom -> 0
+  | Open -> 1
+  | Close -> 2
+  | Read -> 3
+  | Write -> 4
+  | Sendfile -> 5
+  | Stat -> 6
+  | LState -> 7
+  | FStat -> 8
+  | FTruncate -> 9
+  | UTime -> 10
+  | FUTime -> 11
+  | Chmod -> 12
+  | FChmod -> 13
+  | FSync -> 14
+  | FDatasync -> 15
+  | Unlink -> 16
+  | Rmdir -> 17
+  | Mkdir -> 18
+  | Mkdtemp -> 19
+  | Rename -> 20
+  | Readdir -> 21
+  | Link -> 22
+  | Symlink -> 23
+  | Readlink -> 24
+  | Chown -> 25
+  | FChown -> 26
+
+module FS =
+  struct
+    type uv_fs
+    let uv_fs : uv_fs structure typ = structure "uv_fs"
+    let uv_fs_cb = ptr uv_fs @-> returning void
+
+    type t = { req : uv_fs structure ptr; cb : (t -> unit) } (* TODO figure out this type? Do we need a gc prevention field?  *)
+    (* TODO should this be a field of the pointer? *)
+
+    let ( -: ) ty label = field uv_fs label ty
+    let data          = ptr void -: "data" (* I guess this is writable? *)
+    let uv_req_type   = long -: "type" (* readonly TODO ENUM *)
+    let active_queue  = (array 2 (ptr void)) -: "active_queue"
+    let fs_type       = long -: "fs_type" (* TODO ENUM *)
+    let uv_fs_uv_loop = Loop.uv_loop -: "uv_fs_uv_loop" (* TODO naming *)
+    let cb            = (funptr uv_fs_cb) -: "cb"  (* TODO I think this is just type uv_fs_cb and NOT funptr? *)
+    let result        = PosixTypes.ssize_t -: "result"
+    let uv_fs_ptr     = ptr void -: "uv_fs_ptr"
+    let path          = string -: "path"
+    let statbuf       = uv_stat -: "statbuf"
+    (* UV_FS_PRIVATE_FIELDS for Unix below *)
+    let new_path      = string -: "new_path"
+    let file          = int -: "file" (* TODO type is platform dependent *)
+    let flags         = int -: "flags"
+    let mode          = PosixTypes.mode_t -: "mode"
+    let nbufs         = uint -: "nbufs"
+    let bufs          = ptr uv_buf -: "bufs"
+    let off           = PosixTypes.off_t -: "off"
+    let uid           = PosixTypes.uid_t -: "uid"
+    let gid           = PosixTypes.gid_t -: "gid"
+    let atime         = double -: "atime"
+    let mtime         = double -: "mtime"
+    let work_req      = uv__work -: "work_req"
+    let bufsml        = (array 4 uv_buf) -: "bufsml"
+    let () = seal uv_fs
+
+    let uv_fs_stat =
+      foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)
+
+    let stat (loop : Loop.t) (filename : string) (cb : t -> unit) =
+      let data = make uv_fs in
+      let addy = addr data in
+      let guy = {req = addy; cb = cb} in
+      let cb' = (fun _uv_fs -> cb guy) in
+      let _ = uv_fs_stat loop addy filename cb' in (* TODO raise exception *)
+      guy
+
+  end
+
+(* Loop *)
+(*type uv_loop = unit ptr
+let uv_loop : uv_loop typ = ptr void
+
+let uv_default_loop =
+  foreign "uv_default_loop" (void @-> returning uv_loop)
+
+let uv_run =
+  foreign "uv_run" (uv_loop @-> int @-> returning int)*)
+(* TODO should be an enum not an int for second arg *)
+
 (* Files *)
 
-type uv_fs
-let uv_fs : uv_fs structure typ = structure "uv_fs"
 
-let uv_fs_cb = ptr uv_fs @-> returning void
 
-(*
-#define UV_REQ_FIELDS                                                         \
-  /* public */                                                                \
-  void* data;                                                                 \
-  /* read-only */                                                             \
-  uv_req_type type;                                                           \
-  /* private */                                                               \
-  void* active_queue[2];                                                      \
-  UV_REQ_PRIVATE_FIELDS
-
-struct uv_fs_s {
-  UV_REQ_FIELDS
-  uv_fs_type fs_type;
-  uv_loop_t* loop;
-  uv_fs_cb cb;
-  ssize_t result;
-  void* ptr;
-  const char* path;
-  uv_stat_t statbuf;  /* Stores the result of uv_fs_stat() and uv_fs_fstat(). */
-  UV_FS_PRIVATE_FIELDS
-
-// UV_FS_PRIVATE_FIELDS for unix:
- const char *new_path;                                                       \
-  uv_file file;                                                               \
-  int flags;                                                                  \
-  mode_t mode;                                                                \
-  unsigned int nbufs;                                                         \
-  uv_buf_t* bufs;                                                             \
-  off_t off;                                                                  \
-  uv_uid_t uid;                                                               \
-  uv_gid_t gid;                                                               \
-  double atime;                                                               \
-  double mtime;                                                               \
-  struct uv__work work_req;                                                   \
-  uv_buf_t bufsml[4];
-};
-
-*)
-let data = field uv_fs "data" (ptr void)
-let uv_req_type = field uv_fs "type" long (* TODO enum *)
-let active_queue = field uv_fs "active_queue" (array 2 (ptr void))
-(* TODO UV_REQ_PRIVATE_FIELDS currently not defined for any platforms *)
-let fs_type = field uv_fs "fs_type" long (* TODO enum *)
-let uv_fs_uv_loop = field uv_fs "uv_fs_uv_loop" uv_loop (* TODO naming *)
-let cb = field uv_fs "cb" (funptr uv_fs_cb) (* TODO I think this is just type uv_fs_cb and NOT funptr? *)
-let result = field uv_fs "result" PosixTypes.ssize_t
-let uv_fs_ptr = field uv_fs "uv_fs_ptr" (ptr void)
-let path = field uv_fs "path" string
-let statbuf = field uv_fs "statbuf" uv_stat
-(* TODO UV_FS_PRIVATE_FIELDS currently not defined for any platforms *)
-let new_path = field uv_fs "new_path" string
-let file = field uv_fs "file" int (* TODO type is platform dependent *)
-let flags = field uv_fs "flags" int
-let mode = field uv_fs "mode" PosixTypes.mode_t
-let nbufs = field uv_fs "nbufs" uint
-let bufs = field uv_fs "bufs" (ptr uv_buf)
-let off = field uv_fs "off" PosixTypes.off_t
-let uid = field uv_fs "uid" PosixTypes.uid_t (* TODO platform specific uv-unix.h*)
-let gid = field uv_fs "gid" PosixTypes.gid_t (* TODO platform specific uv-unix.h*)
-let atime = field uv_fs "atime" double
-let mtime = field uv_fs "mtime" double
-let work_req = field uv_fs "work_req" uv__work
-let bufsml = field uv_fs "bufsml" (array 4 uv_buf)
-let () = seal uv_fs
-
-let uv_fs_open =
-  foreign "uv_fs_open" (uv_loop @-> ptr uv_fs @-> string @-> int (* flags *) @-> int (* mode *) @-> funptr uv_fs_cb @-> returning int)
+(*let uv_fs_open =
+  foreign "uv_fs_open" (Loop.uv_loop @-> ptr uv_fs @-> string @-> int (* flags *) @-> int (* mode *) @-> funptr uv_fs_cb @-> returning int)
 
 let uv_fs_stat =
-  foreign "uv_fs_stat" (uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)
+  foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)*)

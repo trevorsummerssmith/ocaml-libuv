@@ -7,16 +7,30 @@ let mk_tmpfile contents : string =
   close_out chan;
   tmpfile_name
 
-let test_fs_stat _ =
+(*let test_fs_stat _ =
   let req = make Uv.uv_fs in
   let req_ptr = addr req in
-  let loop = Uv.uv_default_loop () in
+  let loop = Uv.Loop.default_loop () in
   let filename = mk_tmpfile "hello" in
   let ret = Uv.uv_fs_stat loop req_ptr filename (fun _ -> ()) in
-  let run_ret = Uv.uv_run loop 0 in
+  let run_ret = Uv.Loop.run loop RunDefault in
   (* Assert that the structure looks ok *)
   (* TODO add checks to assert all structure fields are correct *)
   let path = getf req Uv.path in
+  assert_equal ret 0;
+  assert_equal run_ret 0;
+  assert_equal path filename*)
+
+let test_fs_stat _ =
+  let req = make Uv.FS.uv_fs in
+  let req_ptr = addr req in
+  let loop = Uv.Loop.default_loop () in
+  let filename = mk_tmpfile "hello" in
+  let ret = Uv.FS.uv_fs_stat loop req_ptr filename (fun _ -> ()) in
+  let run_ret = Uv.Loop.run loop RunDefault in
+  (* Assert that the structure looks ok *)
+  (* TODO add checks to assert all structure fields are correct *)
+  let path = getf req Uv.FS.path in
   assert_equal ret 0;
   assert_equal run_ret 0;
   assert_equal path filename
