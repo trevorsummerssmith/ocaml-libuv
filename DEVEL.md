@@ -160,3 +160,25 @@ Notes:
     - uv_key_create, uv_key_delete, uv_key_get, uv_key_set
   - threads
     - uv_thread_create, uv_thread_self, uv_thread_join
+
+
+Design thoughts:
+----------------
+* On dealing with errors:
+  - Stdlib's Unix uses exceptions.
+  - Stdlib's in_channel and out_channel use exceptions.
+    So do the Core's wrapper modules.
+
+Questions
+---------
+* IMPORTANT: struct lifecycle --
+  Are the structs modifable once created? For example, uv_fs_t
+  has a cb field. If this is changed post-creation does it do
+  anything? I would assume not. Are there any fields that have
+  any meaningful write mode?
+* uv_fs_t -> callback: if NULL will be done async. How to represent that
+  to the OCaml user?
+* How do we keep this in sync with upstream library? Maybe a few
+  scripts to help search for new keywords?
+* Naming of enums -- do we want to keep to big constants? Or not?
+* buf -- should this be a special io memory
