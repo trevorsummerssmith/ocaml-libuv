@@ -12,23 +12,24 @@ sig
   val run : t -> run_mode -> int
 end
 
+module Request :
+sig
+  type 'a t
+  val cancel : 'a t -> unit
+end
+
 module FS :
 sig
-  type uv_fs
-  val uv_fs : uv_fs structure typ
-  val uv_fs_cb : (uv_fs structure ptr -> unit) fn
-  val uv_fs_stat : Loop.t -> uv_fs structure ptr -> string -> (uv_fs structure ptr -> unit) -> int
-  val path : (string, (uv_fs, [ `Struct ]) structured) field
-
-  type t
+  type fs
+  type t = fs Request.t
   val stat : Loop.t -> string -> (t -> unit) -> t
 
-(* TODO interface thoughts below XXX
   (* Accessor functions *)
+  val path : t -> string
+(* TODO interface thoughts below XXX
   val req_type : t -> req_type
   val fs_type : t -> fs_type
   val result : t -> long (* TODO what type should this be? *)
-  val path : t -> string
   (* TODO statbuf -- should we just let everyone access it? Or try to change the 
    signatures for the methods that actually use it? *)
 

@@ -127,6 +127,12 @@ let st_ctim = field uv_stat "st_ctim" uv_timespec
 let st_birthtim = field uv_stat "st_birthtim" uv_timespec
 let () = seal uv_stat
 
+module Request =
+  struct
+    type 'a t = 'a
+    let cancel req = failwith "Not Implemented"
+  end
+
 type request_type =
     Unknown
    | Req
@@ -221,34 +227,34 @@ module FS =
     let uv_fs : uv_fs structure typ = structure "uv_fs"
     let uv_fs_cb = ptr uv_fs @-> returning void
 
-    type t = { req : uv_fs structure ptr; cb : (t -> unit) } (* TODO figure out this type? Do we need a gc prevention field?  *)
-    (* TODO should this be a field of the pointer? *)
+    type fs = { req : uv_fs structure ptr }
+    type t = fs Request.t
 
     let ( -: ) ty label = field uv_fs label ty
-    let data          = ptr void -: "data" (* I guess this is writable? *)
-    let uv_req_type   = long -: "type" (* readonly TODO ENUM *)
-    let active_queue  = (array 2 (ptr void)) -: "active_queue"
-    let fs_type       = long -: "fs_type" (* TODO ENUM *)
-    let uv_fs_uv_loop = Loop.uv_loop -: "uv_fs_uv_loop" (* TODO naming *)
-    let cb            = (funptr uv_fs_cb) -: "cb"  (* TODO I think this is just type uv_fs_cb and NOT funptr? *)
-    let result        = PosixTypes.ssize_t -: "result"
-    let uv_fs_ptr     = ptr void -: "uv_fs_ptr"
-    let path          = string -: "path"
-    let statbuf       = uv_stat -: "statbuf"
+    let _data          = ptr void -: "_data"
+    let _uv_req_type   = long -: "_type" (* readonly TODO ENUM *)
+    let _active_queue  = (array 2 (ptr void)) -: "_active_queue"
+    let _fs_type       = long -: "_fs_type" (* TODO ENUM *)
+    let _uv_fs_uv_loop = Loop.uv_loop -: "_uv_fs_uv_loop" (* TODO naming *)
+    let _cb            = (funptr uv_fs_cb) -: "_cb"  (* TODO I think this is just type uv_fs_cb and NOT funptr? *)
+    let _result        = PosixTypes.ssize_t -: "_result"
+    let _uv_fs_ptr     = ptr void -: "_uv_fs_ptr"
+    let _path          = string -: "_path"
+    let _statbuf       = uv_stat -: "_statbuf"
     (* UV_FS_PRIVATE_FIELDS for Unix below *)
-    let new_path      = string -: "new_path"
-    let file          = int -: "file" (* TODO type is platform dependent *)
-    let flags         = int -: "flags"
-    let mode          = PosixTypes.mode_t -: "mode"
-    let nbufs         = uint -: "nbufs"
-    let bufs          = ptr uv_buf -: "bufs"
-    let off           = PosixTypes.off_t -: "off"
-    let uid           = PosixTypes.uid_t -: "uid"
-    let gid           = PosixTypes.gid_t -: "gid"
-    let atime         = double -: "atime"
-    let mtime         = double -: "mtime"
-    let work_req      = uv__work -: "work_req"
-    let bufsml        = (array 4 uv_buf) -: "bufsml"
+    let _new_path      = string -: "_new_path"
+    let _file          = int -: "_file" (* TODO type is platform dependent *)
+    let _flags         = int -: "_flags"
+    let _mode          = PosixTypes.mode_t -: "_mode"
+    let _nbufs         = uint -: "_nbufs"
+    let _bufs          = ptr uv_buf -: "_bufs"
+    let _off           = PosixTypes.off_t -: "_off"
+    let _uid           = PosixTypes.uid_t -: "_uid"
+    let _gid           = PosixTypes.gid_t -: "_gid"
+    let _atime         = double -: "_atime"
+    let _mtime         = double -: "_mtime"
+    let _work_req      = uv__work -: "_work_req"
+    let _bufsml        = (array 4 uv_buf) -: "_bufsml"
     let () = seal uv_fs
 
     let uv_fs_stat =
@@ -257,10 +263,13 @@ module FS =
     let stat (loop : Loop.t) (filename : string) (cb : t -> unit) =
       let data = make uv_fs in
       let addy = addr data in
-      let guy = {req = addy; cb = cb} in
+      let guy : fs Request.t = {req = addy} in
       let cb' = (fun _uv_fs -> cb guy) in
       let _ = uv_fs_stat loop addy filename cb' in (* TODO raise exception *)
       guy
+
+  (* Accessors *)
+    let path fs = getf !@(fs.req) _path
 
   end
 
