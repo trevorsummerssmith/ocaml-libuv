@@ -22,7 +22,7 @@ module FS :
 sig
   type fs
   type t = fs Request.t
-  val stat : Loop.t -> string -> (t -> unit) -> t
+  val stat : ?loop:Loop.t -> string -> (t -> unit) -> t
 
   (* Accessor functions *)
   val path : t -> string

@@ -23,8 +23,7 @@ let mk_tmpfile contents : string =
 
 let test_fs_stat _ =
   let filename = mk_tmpfile "hello" in
-  let loop = Uv.Loop.default_loop () in
-  let fs = Uv.FS.stat loop filename (fun _ -> ()) in
+  let fs = Uv.FS.stat filename (fun _ -> ()) in
   assert_equal (Uv.FS.path fs) filename
 
 let suite =

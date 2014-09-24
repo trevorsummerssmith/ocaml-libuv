@@ -49,6 +49,8 @@ module Loop =
       f loop (run_mode_to_int run_mode)
   end
 
+let default_loop = Loop.default_loop ()
+
 (* threadpool.h -- uv__work
 struct uv__work {
   void ( *work)(struct uv__work *w);
@@ -260,13 +262,11 @@ module FS =
     let uv_fs_stat =
       foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)
 
-    let stat (loop : Loop.t) (filename : string) (cb : t -> unit) =
-      let data = make uv_fs in
-      let addy = addr data in
-      let guy : fs Request.t = {req = addy} in
-      let cb' = (fun _uv_fs -> cb guy) in
-      let _ = uv_fs_stat loop addy filename cb' in (* TODO raise exception *)
-      guy
+    let stat ?(loop=default_loop) (filename : string) (cb : t -> unit) =
+      let data = addr (make uv_fs) in
+      let cb' = (fun _uv_fs -> let fs = {req=_uv_fs} in cb fs) in
+      let _ = uv_fs_stat loop data filename cb' in (* TODO raise exception *)
+      {req=data}
 
   (* Accessors *)
     let path fs = getf !@(fs.req) _path
