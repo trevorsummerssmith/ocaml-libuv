@@ -7,10 +7,12 @@ typedef struct uv_buf_t {
   size_t len;
 } uv_buf_t;
 *)
+type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
 type uv_buf
 let uv_buf : uv_buf structure typ = structure "uv_buf"
-let uv_buf_base = field uv_buf "uv_buf_base" string
-let uv_buf_len = field uv_buf "uv_buf_len" size_t
+let _uv_buf_base = field uv_buf "uv_buf_base" (ptr char) (* bigarray *)
+let _uv_buf_len = field uv_buf "uv_buf_len" size_t
 let () = seal uv_buf
 
 (* timespec *)
@@ -136,6 +138,7 @@ module FS =
 
     type fs = { req : uv_fs structure ptr }
     type t = fs Request.t
+    type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
     let ( -: ) ty label = field uv_fs label ty
     let _data          = ptr void -: "_data"
@@ -163,6 +166,22 @@ module FS =
     let _work_req      = uv__work -: "_work_req"
     let _bufsml        = (array 4 uv_buf) -: "_bufsml"
     let () = seal uv_fs
+
+    let uv_fs_open =
+      foreign "uv_fs_open" (Loop.uv_loop @-> ptr uv_fs @-> string @-> int @->
+			      int @-> funptr_opt uv_fs_cb @-> returning int)
+    let uv_fs_close =
+      foreign "uv_fs_close" (Loop.uv_loop @-> ptr uv_fs @-> int
+			     @-> funptr_opt uv_fs_cb @-> returning int)
+    let uv_fs_read =
+      foreign "uv_fs_read" (Loop.uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf (* TODO wil this work? *)
+			    @-> int @-> long @-> funptr_opt uv_fs_cb
+			    @-> returning int)
+
+    let uv_fs_write =
+      foreign "uv_fs_write" (Loop.uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf
+			     @-> int @-> long @-> funptr_opt uv_fs_cb
+			     @-> returning int)
 
     let uv_fs_stat =
       foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr_opt uv_fs_cb @-> returning int)
@@ -204,6 +223,46 @@ module FS =
 	None -> None
       | Some cb -> Some (make_callback cb)
 
+    let openfile ?(loop=default_loop) ?cb ?(perm=0o644) (filename : string) flags  =
+      let data = addr (make uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = uv_fs_open loop data filename flags perm cb' in
+      {req=data}
+
+    let close ?(loop=default_loop) ?cb file =
+      let data = addr (make uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = uv_fs_close loop data file cb' in
+      {req=data}
+
+    let read ?(loop=default_loop) ?cb ?(offset=(-1)) file = (* TODO what should offset be? *)
+      let data = addr (make uv_fs) in
+      let cb' = make_callback_opt cb in
+      (* Allocate read buffer *)
+      let buf_len = 1024 in
+      let buf = Bigarray.(Array1.create char c_layout buf_len) in
+      let buf_ptr = bigarray_start array1 buf in
+      let buf_data = make uv_buf in
+      let _ = setf buf_data _uv_buf_base buf_ptr in
+      let _ = setf buf_data _uv_buf_len (Unsigned.Size_t.of_int buf_len) in
+      let arr = CArray.make uv_buf 1 in
+      let _ = CArray.set arr 0 buf_data in  (* TODO may be able to make this simpler *)
+      let _ = uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
+      {req=data}
+
+    let write ?(loop=default_loop) ?cb ?(offset=(-1)) file buf = (* TODO offset, bufs *)
+      let data = addr (make uv_fs) in
+      let cb' = make_callback_opt cb in
+      (* Allocate buf_t structure *)
+      let buf_ptr = bigarray_start array1 buf in
+      let buf_data = make uv_buf in
+      let _ = setf buf_data _uv_buf_base buf_ptr in
+      let buf_len = Bigarray.Array1.dim buf in
+      let _ = setf buf_data _uv_buf_len (Unsigned.Size_t.of_int buf_len) in
+      (* TODO just passing a single guy here... *)
+      let _ = uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
+      {req=data}
+
     let stat ?(loop=default_loop) ?cb (filename : string) =
       let data = addr (make uv_fs) in
       let cb' = make_callback_opt cb in
@@ -211,7 +270,20 @@ module FS =
       {req=data}
 
   (* Accessors *)
+    let result fs =
+      let f = getf !@(fs.req) _result in
+      try
+	let i = coerce PosixTypes.ssize_t int64_t f in
+	Signed.Int64.to_int64 i
+      with exn -> Printf.printf "Oh no!\n"; raise exn
+
     let path fs = getf !@(fs.req) _path
+
+    let buf fs =
+      let b = getf !@(fs.req) _bufs in (* TODO make this type work with win *)
+      let data = getf !@b _uv_buf_base in (* TODO this assumes there is one buf *)
+      let len = getf !@b _uv_buf_len in
+      bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.Char data
 
     let statbuf fs =
       let sb = getf !@(fs.req) _statbuf in
