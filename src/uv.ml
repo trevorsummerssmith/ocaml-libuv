@@ -128,94 +128,6 @@ module Request =
     let cancel req = failwith "Not Implemented"
   end
 
-type request_type =
-    Unknown
-   | Req
-   | Connect
-   | Write
-   | Shutdown
-   | UDPSend
-   | FS
-   | Work
-   | GetAddrInfo
-   | GetNameInfo
-   | Private
-   | Max
-
-let request_type_to_int = function
-    Unknown -> 0
-   | Req -> 1
-   | Connect -> 2
-   | Write -> 3
-   | Shutdown -> 4
-   | UDPSend -> 5
-   | FS -> 6
-   | Work -> 7
-   | GetAddrInfo -> 8
-   | GetNameInfo -> 9
-   | Private -> 10
-   | Max -> 11
-
-type fs_type =
-    Unknown
-  | Custom
-  | Open
-  | Close
-  | Read
-  | Write
-  | Sendfile
-  | Stat
-  | LState
-  | FStat
-  | FTruncate
-  | UTime
-  | FUTime
-  | Chmod
-  | FChmod
-  | FSync
-  | FDatasync
-  | Unlink
-  | Rmdir
-  | Mkdir
-  | Mkdtemp
-  | Rename
-  | Readdir
-  | Link
-  | Symlink
-  | Readlink
-  | Chown
-  | FChown
-
-let fs_type_to_int = function
-    Unknown -> -1
-  | Custom -> 0
-  | Open -> 1
-  | Close -> 2
-  | Read -> 3
-  | Write -> 4
-  | Sendfile -> 5
-  | Stat -> 6
-  | LState -> 7
-  | FStat -> 8
-  | FTruncate -> 9
-  | UTime -> 10
-  | FUTime -> 11
-  | Chmod -> 12
-  | FChmod -> 13
-  | FSync -> 14
-  | FDatasync -> 15
-  | Unlink -> 16
-  | Rmdir -> 17
-  | Mkdir -> 18
-  | Mkdtemp -> 19
-  | Rename -> 20
-  | Readdir -> 21
-  | Link -> 22
-  | Symlink -> 23
-  | Readlink -> 24
-  | Chown -> 25
-  | FChown -> 26
-
 module FS =
   struct
     type uv_fs
@@ -227,11 +139,11 @@ module FS =
 
     let ( -: ) ty label = field uv_fs label ty
     let _data          = ptr void -: "_data"
-    let _uv_req_type   = long -: "_type" (* readonly TODO ENUM *)
+    let _uv_req_type   = long -: "_uv_req_type"
     let _active_queue  = (array 2 (ptr void)) -: "_active_queue"
-    let _fs_type       = long -: "_fs_type" (* TODO ENUM *)
-    let _uv_fs_uv_loop = Loop.uv_loop -: "_uv_fs_uv_loop" (* TODO naming *)
-    let _cb            = (funptr uv_fs_cb) -: "_cb"  (* TODO I think this is just type uv_fs_cb and NOT funptr? *)
+    let _fs_type       = long -: "_fs_type"
+    let _uv_fs_uv_loop = Loop.uv_loop -: "_uv_fs_uv_loop"
+    let _cb            = funptr uv_fs_cb -: "_cb"
     let _result        = PosixTypes.ssize_t -: "_result"
     let _uv_fs_ptr     = ptr void -: "_uv_fs_ptr"
     let _path          = string -: "_path"

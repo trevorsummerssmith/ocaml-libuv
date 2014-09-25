@@ -161,6 +161,18 @@ Notes:
   - threads
     - uv_thread_create, uv_thread_self, uv_thread_join
 
+Decisions
+---------
+* Not going to expose the uv_fs_type or uv_req_type fields.
+  Rationale: These appear to be to help share callbacks for the C
+  programmer (so that a single method could type cast multiple request/fs types)
+  We have already made it impossible to share callbacks between different
+  request types (because our OCaml callbacks take the concrete module type).
+  I don't see any downside here.
+* Not going to use the data pointer.
+  Rationale: this is there for the c programmer to pass data to the callback.
+  We're in OCaml and can easily pass any data to the callback.
+
 
 Design thoughts:
 ----------------
