@@ -17,13 +17,20 @@ let () = seal uv_buf
 
 type uv_timespec
 let uv_timespec : uv_timespec structure typ = structure "uv_timespec"
-let tv_sec = field uv_timespec "tv_sec" long
-let tv_nsec = field uv_timespec "tv_nsec" long
+let _tv_sec = field uv_timespec "_tv_sec" long
+let _tv_nsec = field uv_timespec "_tv_nsec" long
 let () = seal uv_timespec
 
-(*
-Examples of call back https://github.com/ocamllabs/ocaml-ctypes/blob/master/examples/fts/foreign/fts.ml
-*)
+type timespec = {
+  tv_sec : int64;
+  tv_nsec : int64 (* TODO what type should these be? *)
+}
+
+let from_uv_timespec uv_t =
+  let tv_sec = Signed.Long.to_int64 (getf uv_t _tv_sec) in
+  let tv_nsec = Signed.Long.to_int64 (getf uv_t _tv_nsec) in
+  {tv_sec; tv_nsec}
+
 
 module Loop =
   struct
@@ -71,63 +78,49 @@ let uv__work_wq = field uv__work "uv__work_wq" (array 2 (ptr void))
 let () = seal uv__work
 
 (* Stat *)
-(*
 
-typedef struct {
-  uint64_t st_dev;
-  uint64_t st_mode;
-  uint64_t st_nlink;
-  uint64_t st_uid;
-  uint64_t st_gid;
-  uint64_t st_rdev;
-  uint64_t st_ino;
-  uint64_t st_size;
-  uint64_t st_blksize;
-  uint64_t st_blocks;
-  uint64_t st_flags;
-  uint64_t st_gen;
-  uv_timespec_t st_atim;
-  uv_timespec_t st_mtim;
-  uv_timespec_t st_ctim;
-  uv_timespec_t st_birthtim;
-} uv_stat_t;
-
-uint64_t st_dev;
-  uint64_t st_mode;
-  uint64_t st_nlink;
-  uint64_t st_uid;
-  uint64_t st_gid;
-  uint64_t st_rdev;
-  uint64_t st_ino;
-  uint64_t st_size;
-  uint64_t st_blksize;
-  uint64_t st_blocks;
-  uint64_t st_flags;
-  uint64_t st_gen;
-  uv_timespec_t st_atim;
-  uv_timespec_t st_mtim;
-  uv_timespec_t st_ctim;
-  uv_timespec_t st_birthtim;
-*)
 type uv_stat
 let uv_stat : uv_stat structure typ = structure "uv_stat"
-let st_dev = field uv_stat "st_dev" uint64_t
-let st_mode = field uv_stat "st_mode" uint64_t
-let st_nlink = field uv_stat "st_nlink" uint64_t
-let st_uid = field uv_stat "st_uid" uint64_t
-let st_gid = field uv_stat "st_gid" uint64_t
-let st_rdev = field uv_stat "st_rdev" uint64_t
-let st_ino = field uv_stat "st_ino" uint64_t
-let st_size = field uv_stat "st_size" uint64_t
-let st_blksize = field uv_stat "st_blksize" uint64_t
-let st_blocks = field uv_stat "st_blocks" uint64_t
-let st_flags = field uv_stat "st_flags" uint64_t
-let st_gen = field uv_stat "st_gen" uint64_t
-let st_atim = field uv_stat "st_atim" uv_timespec
-let st_mtim = field uv_stat "st_mtim" uv_timespec
-let st_ctim = field uv_stat "st_ctim" uv_timespec
-let st_birthtim = field uv_stat "st_birthtim" uv_timespec
+let _st_dev = field uv_stat "_st_dev" uint64_t
+let _st_mode = field uv_stat "_st_mode" uint64_t
+let _st_nlink = field uv_stat "_st_nlink" uint64_t
+let _st_uid = field uv_stat "_st_uid" uint64_t
+let _st_gid = field uv_stat "_st_gid" uint64_t
+let _st_rdev = field uv_stat "_st_rdev" uint64_t
+let _st_ino = field uv_stat "_st_ino" uint64_t
+let _st_size = field uv_stat "_st_size" uint64_t
+let _st_blksize = field uv_stat "_st_blksize" uint64_t
+let _st_blocks = field uv_stat "_st_blocks" uint64_t
+let _st_flags = field uv_stat "_st_flags" uint64_t
+let _st_gen = field uv_stat "_st_gen" uint64_t
+let _st_atim = field uv_stat "_st_atim" uv_timespec
+let _st_mtim = field uv_stat "_st_mtim" uv_timespec
+let _st_ctim = field uv_stat "_st_ctim" uv_timespec
+let _st_birthtim = field uv_stat "_st_birthtim" uv_timespec
 let () = seal uv_stat
+
+type stat = {
+  (* Note a lot of these types have standard Posix types. libuv, being
+     a cross platform library, does not use these types, and uses uint64_t
+     for all of these fields. This struct follows suit.
+   *)
+  st_dev : int64;
+  st_mode : int64;
+  st_nlink : int64;
+  st_uid : int64;
+  st_gid : int64;
+  st_rdev : int64;
+  st_ino : int64;
+  st_size : int64;
+  st_blksize : int64;
+  st_blocks : int64;
+  st_flags : int64;
+  st_gen : int64;
+  st_atim : timespec;
+  st_mtim : timespec;
+  st_ctim : timespec;
+  st_birthtim : timespec
+}
 
 module Request =
   struct
@@ -260,36 +253,77 @@ module FS =
     let () = seal uv_fs
 
     let uv_fs_stat =
-      foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)
+      foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr_opt uv_fs_cb @-> returning int)
 
-    let stat ?(loop=default_loop) (filename : string) (cb : t -> unit) =
+    let refs = Refcount.create ()
+    let ref_incr = Refcount.incr refs
+    let ref_decr = Refcount.decr refs
+
+    let make_callback cb =
+      (* There's something kind of subtle here:
+         we need to pass the Ocaml user's callback function (cb) to libuv, so
+         we'll need to wrap the user's function in a method that converts the
+         ctype passed to the callback into an OCaml value. Call the ctype
+         callback (ie the actual callback called by libuv cb').
+         So basically this look likes:
+
+         let cb' arg = cb(make_ctype_into_ocaml_type(arg))
+
+         However we don't want that callback to get gc'd before it is called.
+         So we keep track of the callbacks (cb' mind you) in a hashtbl. We add
+         cb' to the hash right before passing it to libuv. And we remove cb'
+         from the hashtbl right after calling the user's callback, cb.
+
+         make_callback, does all of that. Looks a little dense, not so bad.
+       *)
+      let rec callback cb _uv_fs =
+	let finally () = ref_decr cb in
+	let fs = {req=_uv_fs} in
+	try cb fs
+	with exn -> (* we got an exception. Clear gc ref and re-raise *)
+	  (finally ();
+	   raise exn)
+	finally ()
+      in
+      ref_incr cb;
+      callback cb
+
+    let make_callback_opt = function
+	None -> None
+      | Some cb -> Some (make_callback cb)
+
+    let stat ?(loop=default_loop) ?cb (filename : string) =
       let data = addr (make uv_fs) in
-      let cb' = (fun _uv_fs -> let fs = {req=_uv_fs} in cb fs) in
+      let cb' = make_callback_opt cb in
       let _ = uv_fs_stat loop data filename cb' in (* TODO raise exception *)
       {req=data}
 
   (* Accessors *)
     let path fs = getf !@(fs.req) _path
 
+    let statbuf fs =
+      let sb = getf !@(fs.req) _statbuf in
+      let f conv field = conv (getf sb field) in
+      let i = f Unsigned.UInt64.to_int64 in
+      let t = f from_uv_timespec in
+      let st_dev = i _st_dev in
+      let st_mode = i _st_mode in
+      let st_nlink = i _st_nlink in
+      let st_uid = i _st_uid in
+      let st_gid = i _st_gid in
+      let st_rdev = i _st_rdev in
+      let st_ino = i _st_ino in
+      let st_size = i _st_size in
+      let st_blksize = i _st_blksize in
+      let st_blocks = i _st_blocks in
+      let st_flags = i _st_flags in
+      let st_gen = i _st_gen in
+      let st_atim = t _st_atim in
+      let st_mtim = t _st_mtim in
+      let st_ctim = t _st_ctim in
+      let st_birthtim = t _st_birthtim in
+      {st_dev; st_mode; st_nlink; st_uid; st_gid; st_rdev; st_ino; st_size;
+       st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
+       st_birthtim}
+
   end
-
-(* Loop *)
-(*type uv_loop = unit ptr
-let uv_loop : uv_loop typ = ptr void
-
-let uv_default_loop =
-  foreign "uv_default_loop" (void @-> returning uv_loop)
-
-let uv_run =
-  foreign "uv_run" (uv_loop @-> int @-> returning int)*)
-(* TODO should be an enum not an int for second arg *)
-
-(* Files *)
-
-
-
-(*let uv_fs_open =
-  foreign "uv_fs_open" (Loop.uv_loop @-> ptr uv_fs @-> string @-> int (* flags *) @-> int (* mode *) @-> funptr uv_fs_cb @-> returning int)
-
-let uv_fs_stat =
-  foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr uv_fs_cb @-> returning int)*)
