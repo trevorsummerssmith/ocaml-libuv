@@ -19,7 +19,7 @@ struct
   
   (* uv_buf *)
   type uv_buf
-  let uv_buf : uv_buf structure typ = structure "uv_buf"
+  let uv_buf : uv_buf structure typ = structure "uv_buf_t"
   let _uv_buf_base = field uv_buf "uv_buf_base" (ptr char) (* bigarray *)
   let _uv_buf_len = field uv_buf "uv_buf_len" size_t
   let () = seal uv_buf (* TODO this is a platform dependent type *)
@@ -66,7 +66,7 @@ struct
 
   (* uv_fs *)
   type uv_fs
-  let uv_fs : uv_fs structure typ = structure "uv_fs"
+  let uv_fs : uv_fs structure typ = structure "uv_fs_s"
   let uv_fs_cb = ptr uv_fs @-> returning void
 
   let ( -: ) ty label = field uv_fs label ty
