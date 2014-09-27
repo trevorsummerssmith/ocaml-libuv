@@ -20,15 +20,15 @@ struct
   (* uv_buf *)
   type uv_buf
   let uv_buf : uv_buf structure typ = structure "uv_buf_t"
-  let _uv_buf_base = field uv_buf "uv_buf_base" (ptr char) (* bigarray *)
-  let _uv_buf_len = field uv_buf "uv_buf_len" size_t
+  let _uv_buf_base = field uv_buf "base" (ptr char) (* bigarray *)
+  let _uv_buf_len = field uv_buf "len" size_t
   let () = seal uv_buf (* TODO this is a platform dependent type *)
 
   (* uv_timespec *)
   type uv_timespec
-  let uv_timespec : uv_timespec structure typ = structure "uv_timespec"
-  let _tv_sec = field uv_timespec "_tv_sec" long
-  let _tv_nsec = field uv_timespec "_tv_nsec" long
+  let uv_timespec : uv_timespec structure typ = structure "uv_timespec_t"
+  let _tv_sec = field uv_timespec "tv_sec" long
+  let _tv_nsec = field uv_timespec "tv_nsec" long
   let () = seal uv_timespec
 
   (* uv__work *)
@@ -37,31 +37,31 @@ struct
   let uv__work_work_cb = ptr uv__work @-> returning void
   let uv__work_done_cb = ptr uv__work @-> int @-> returning void
 
-  let uv__work_work = field uv__work "uv__work_work" (Foreign.funptr uv__work_work_cb)
-  let uv__work_done = field uv__work "uv__work_done" (Foreign.funptr uv__work_done_cb)
-  let uv__work_loop = field uv__work "uv__work_loop" uv_loop
-  let uv__work_wq = field uv__work "uv__work_wq" (array 2 (ptr void))
+  let uv__work_work = field uv__work "work" (Foreign.funptr uv__work_work_cb)
+  let uv__work_done = field uv__work "done" (Foreign.funptr uv__work_done_cb)
+  let uv__work_loop = field uv__work "loop" uv_loop
+  let uv__work_wq = field uv__work "wq" (array 2 (ptr void))
   let () = seal uv__work
 
   (* uv_stat *)
   type uv_stat
-  let uv_stat : uv_stat structure typ = structure "uv_stat"
-  let _st_dev = field uv_stat "_st_dev" uint64_t
-  let _st_mode = field uv_stat "_st_mode" uint64_t
-  let _st_nlink = field uv_stat "_st_nlink" uint64_t
-  let _st_uid = field uv_stat "_st_uid" uint64_t
-  let _st_gid = field uv_stat "_st_gid" uint64_t
-  let _st_rdev = field uv_stat "_st_rdev" uint64_t
-  let _st_ino = field uv_stat "_st_ino" uint64_t
-  let _st_size = field uv_stat "_st_size" uint64_t
-  let _st_blksize = field uv_stat "_st_blksize" uint64_t
-  let _st_blocks = field uv_stat "_st_blocks" uint64_t
-  let _st_flags = field uv_stat "_st_flags" uint64_t
-  let _st_gen = field uv_stat "_st_gen" uint64_t
-  let _st_atim = field uv_stat "_st_atim" uv_timespec
-  let _st_mtim = field uv_stat "_st_mtim" uv_timespec
-  let _st_ctim = field uv_stat "_st_ctim" uv_timespec
-  let _st_birthtim = field uv_stat "_st_birthtim" uv_timespec
+  let uv_stat : uv_stat structure typ = structure "uv_stat_t"
+  let _st_dev = field uv_stat "st_dev" uint64_t
+  let _st_mode = field uv_stat "st_mode" uint64_t
+  let _st_nlink = field uv_stat "st_nlink" uint64_t
+  let _st_uid = field uv_stat "st_uid" uint64_t
+  let _st_gid = field uv_stat "st_gid" uint64_t
+  let _st_rdev = field uv_stat "st_rdev" uint64_t
+  let _st_ino = field uv_stat "st_ino" uint64_t
+  let _st_size = field uv_stat "st_size" uint64_t
+  let _st_blksize = field uv_stat "st_blksize" uint64_t
+  let _st_blocks = field uv_stat "st_blocks" uint64_t
+  let _st_flags = field uv_stat "st_flags" uint64_t
+  let _st_gen = field uv_stat "st_gen" uint64_t
+  let _st_atim = field uv_stat "st_atim" uv_timespec
+  let _st_mtim = field uv_stat "st_mtim" uv_timespec
+  let _st_ctim = field uv_stat "st_ctim" uv_timespec
+  let _st_birthtim = field uv_stat "st_birthtim" uv_timespec
   let () = seal uv_stat
 
   (* uv_fs *)
@@ -70,30 +70,31 @@ struct
   let uv_fs_cb = ptr uv_fs @-> returning void
 
   let ( -: ) ty label = field uv_fs label ty
-  let _data          = ptr void -: "_data"
-  let _uv_req_type   = long -: "_uv_req_type"
-  let _active_queue  = (array 2 (ptr void)) -: "_active_queue"
-  let _fs_type       = long -: "_fs_type"
-  let _uv_fs_uv_loop = uv_loop -: "_uv_fs_uv_loop"
-  let _cb            = Foreign.funptr uv_fs_cb -: "_cb"
-  let _result        = PosixTypes.ssize_t -: "_result"
-  let _uv_fs_ptr     = ptr void -: "_uv_fs_ptr"
-  let _path          = string -: "_path"
-  let _statbuf       = uv_stat -: "_statbuf"
+  let _data          = ptr void -: "data"
+  let _uv_req_type   = long -: "type"
+  let _active_queue  = (array 2 (ptr void)) -: "active_queue"
+  (* TODO reserved *)
+  let _fs_type       = long -: "fs_type"
+  let _uv_fs_uv_loop = uv_loop -: "loop"
+  let _cb            = Foreign.funptr uv_fs_cb -: "cb"
+  let _result        = PosixTypes.ssize_t -: "result"
+  let _uv_fs_ptr     = ptr void -: "ptr"
+  let _path          = string -: "path"
+  let _statbuf       = uv_stat -: "statbuf"
   (* UV_FS_PRIVATE_FIELDS for Unix below *)
-  let _new_path      = string -: "_new_path"
-  let _file          = int -: "_file" (* TODO type is platform dependent *)
-  let _flags         = int -: "_flags"
-  let _mode          = PosixTypes.mode_t -: "_mode"
-  let _nbufs         = uint -: "_nbufs"
-  let _bufs          = ptr uv_buf -: "_bufs"
-  let _off           = PosixTypes.off_t -: "_off"
-  let _uid           = PosixTypes.uid_t -: "_uid"
-  let _gid           = PosixTypes.gid_t -: "_gid"
-  let _atime         = double -: "_atime"
-  let _mtime         = double -: "_mtime"
-  let _work_req      = uv__work -: "_work_req"
-  let _bufsml        = (array 4 uv_buf) -: "_bufsml"
+  let _new_path      = string -: "new_path"
+  let _file          = int -: "file" (* TODO type is platform dependent *)
+  let _flags         = int -: "flags"
+  let _mode          = PosixTypes.mode_t -: "mode"
+  let _nbufs         = uint -: "nbufs"
+  let _bufs          = ptr uv_buf -: "bufs"
+  let _off           = PosixTypes.off_t -: "off"
+  let _uid           = PosixTypes.uid_t -: "uid"
+  let _gid           = PosixTypes.gid_t -: "gid"
+  let _atime         = double -: "atime"
+  let _mtime         = double -: "mtime"
+  let _work_req      = uv__work -: "work_req"
+  let _bufsml        = (array 4 uv_buf) -: "bufsml"
   (* end UV_FS_PRIVATE_FIELDS *)
   let () = seal uv_fs
 
