@@ -27,5 +27,5 @@ let () =
     Printf.fprintf stderr "Usage: %s <filename>\n" Sys.argv.(0)
   else
     let _ = FS.openfile Sys.argv.(1) ~cb:open_callback 0 in
-    let _ = Loop.run (Loop.default_loop ()) RunDefault in
+    let _ = Loop.run (Loop.default_loop ()) Loop.RunDefault in
     ()
