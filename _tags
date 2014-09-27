@@ -1,0 +1,4 @@
+#<*.byte>: linkdep(libuv_stubs.o), custom
+#<*.native>: linkdep(libuv_stubs.o)
+<*.byte>: needs_libuv_stubs
+<*.native>: needs_libuv_stubs, linkdep(libuv_stubs.o)
