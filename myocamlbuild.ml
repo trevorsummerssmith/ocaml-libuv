@@ -1,15 +1,17 @@
 open Ocamlbuild_plugin;;
 
 dispatch begin function
+  | Before_options ->
+      Options.use_ocamlfind := true
   | After_rules ->
-      rule "cstubs: src/x_bindings.ml -> x_stubs.c, x_stubs.ml"
-        ~prods:["src/%_stubs.c"; "src/%_generated.ml"]
-        ~deps: ["lib_gen/%_bindgen.byte"]
-        (fun env build ->
-          Cmd (A(env "lib_gen/%_bindgen.byte")));
-      copy_rule "cstubs: lib_gen/x_bindings.ml -> src/x_bindings.ml"
-        "lib_gen/%_bindings.ml" "src/%_bindings.ml";
-      dep ["link"; "ocaml"; "needs_libuv_stubs"] ["libuv_stubs.o"];
-      pdep ["link"] "linkdep" (fun param -> [param])
+      rule "generated c & ml"
+        ~prods:["src/libuv_generated_stubs.c"; "src/libuv_generated.ml"]
+        ~deps: ["lib_gen/libuv_bindgen.byte"]
+        (fun _ _ -> Cmd (S[P"lib_gen/libuv_bindgen.byte"]));
+      let ctypes = Findlib.query "ctypes" in
+      flag ["compile"; "use_ctypes_c_headers"] (S[A"-I"; Px (ctypes.Findlib.location ^ "/..")]);
+      flag ["ocaml"; "compile"; "use_libuv_generated_stubs"] (S[Px"src/libuv_generated_stubs.o"]);
+      dep ["ocaml"; "use_libuv_generated_stubs"] ["src/libuv_generated_stubs.o"];
+      flag ["ocaml"; "link"; "use_libuv"] (S[A"-cclib"; A"-luv"])
   | _ -> ()
 end
