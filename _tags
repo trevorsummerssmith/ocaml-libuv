@@ -2,5 +2,7 @@ true: package(ctypes), package(ctypes.stubs), package(ctypes.foreign)
 <src/libuv_generated_stubs.*>: use_ctypes_c_headers
 <examples/*.byte>: use_libuv_generated_stubs, custom, use_libuv
 <examples/*.native>: use_libuv_generated_stubs, use_libuv
+<test/*.byte>: use_libuv_generated_stubs, custom, use_libuv
+<test/*.native>: use_libuv_generated_stubs, use_libuv
 <lib_gen>: include
 <src>: include
