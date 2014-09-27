@@ -1,27 +1,9 @@
 open Ctypes
 open Foreign
 
-(* buffer -- TODO platform dependent uv-unix.h
-typedef struct uv_buf_t {
-  char* base;
-  size_t len;
-} uv_buf_t;
-*)
+module C = Libuv_bindings.C(Libuv_generated)
+
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
-
-type uv_buf
-let uv_buf : uv_buf structure typ = structure "uv_buf"
-let _uv_buf_base = field uv_buf "uv_buf_base" (ptr char) (* bigarray *)
-let _uv_buf_len = field uv_buf "uv_buf_len" size_t
-let () = seal uv_buf
-
-(* timespec *)
-
-type uv_timespec
-let uv_timespec : uv_timespec structure typ = structure "uv_timespec"
-let _tv_sec = field uv_timespec "_tv_sec" long
-let _tv_nsec = field uv_timespec "_tv_nsec" long
-let () = seal uv_timespec
 
 type timespec = {
   tv_sec : int64;
@@ -29,16 +11,14 @@ type timespec = {
 }
 
 let from_uv_timespec uv_t =
-  let tv_sec = Signed.Long.to_int64 (getf uv_t _tv_sec) in
-  let tv_nsec = Signed.Long.to_int64 (getf uv_t _tv_nsec) in
+  let tv_sec = Signed.Long.to_int64 (getf uv_t C._tv_sec) in
+  let tv_nsec = Signed.Long.to_int64 (getf uv_t C._tv_nsec) in
   {tv_sec; tv_nsec}
 
 
 module Loop =
   struct
-    type uv_loop = unit ptr
-    let uv_loop : uv_loop typ = ptr void
-    type t = uv_loop
+    type t = C.uv_loop
     type run_mode = RunDefault | RunOnce | RunNoWait
 
     let run_mode_to_int = function
@@ -46,60 +26,12 @@ module Loop =
       | RunOnce -> 1
       | RunNoWait -> 2
 
-    let default_loop () =
-      let _default_loop =
-	foreign "uv_default_loop" (void @-> returning uv_loop)
-      in
-      _default_loop ()
+    let default_loop = C.uv_default_loop
 
-    let run loop run_mode =
-      let f = foreign "uv_run" (uv_loop @-> int @-> returning int)
-      in
-      f loop (run_mode_to_int run_mode)
+    let run loop run_mode = C.uv_run loop (run_mode_to_int run_mode)
   end
 
 let default_loop = Loop.default_loop ()
-
-(* threadpool.h -- uv__work
-struct uv__work {
-  void ( *work)(struct uv__work *w);
-  void ( *done)(struct uv__work *w, int status);
-  struct uv_loop_s* loop;
-  void* wq[2];
-};
-*)
-type uv__work (* we'll keep their convention of 2 underscores? *)
-let uv__work : uv__work structure typ = structure "uv__work"
-let uv__work_work_cb = ptr uv__work @-> returning void
-let uv__work_done_cb = ptr uv__work @-> int @-> returning void
-
-let uv__work_work = field uv__work "uv__work_work" (funptr uv__work_work_cb)
-let uv__work_done = field uv__work "uv__work_done" (funptr uv__work_done_cb)
-let uv__work_loop = field uv__work "uv__work_loop" Loop.uv_loop
-let uv__work_wq = field uv__work "uv__work_wq" (array 2 (ptr void))
-let () = seal uv__work
-
-(* Stat *)
-
-type uv_stat
-let uv_stat : uv_stat structure typ = structure "uv_stat"
-let _st_dev = field uv_stat "_st_dev" uint64_t
-let _st_mode = field uv_stat "_st_mode" uint64_t
-let _st_nlink = field uv_stat "_st_nlink" uint64_t
-let _st_uid = field uv_stat "_st_uid" uint64_t
-let _st_gid = field uv_stat "_st_gid" uint64_t
-let _st_rdev = field uv_stat "_st_rdev" uint64_t
-let _st_ino = field uv_stat "_st_ino" uint64_t
-let _st_size = field uv_stat "_st_size" uint64_t
-let _st_blksize = field uv_stat "_st_blksize" uint64_t
-let _st_blocks = field uv_stat "_st_blocks" uint64_t
-let _st_flags = field uv_stat "_st_flags" uint64_t
-let _st_gen = field uv_stat "_st_gen" uint64_t
-let _st_atim = field uv_stat "_st_atim" uv_timespec
-let _st_mtim = field uv_stat "_st_mtim" uv_timespec
-let _st_ctim = field uv_stat "_st_ctim" uv_timespec
-let _st_birthtim = field uv_stat "_st_birthtim" uv_timespec
-let () = seal uv_stat
 
 type stat = {
   (* Note a lot of these types have standard Posix types. libuv, being
@@ -132,59 +64,9 @@ module Request =
 
 module FS =
   struct
-    type uv_fs
-    let uv_fs : uv_fs structure typ = structure "uv_fs"
-    let uv_fs_cb = ptr uv_fs @-> returning void
-
-    type fs = { req : uv_fs structure ptr }
+    type fs = { req : C.uv_fs structure  ptr } (* or is that C.uv_fs ptr? *)
     type t = fs Request.t
     type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
-
-    let ( -: ) ty label = field uv_fs label ty
-    let _data          = ptr void -: "_data"
-    let _uv_req_type   = long -: "_uv_req_type"
-    let _active_queue  = (array 2 (ptr void)) -: "_active_queue"
-    let _fs_type       = long -: "_fs_type"
-    let _uv_fs_uv_loop = Loop.uv_loop -: "_uv_fs_uv_loop"
-    let _cb            = funptr uv_fs_cb -: "_cb"
-    let _result        = PosixTypes.ssize_t -: "_result"
-    let _uv_fs_ptr     = ptr void -: "_uv_fs_ptr"
-    let _path          = string -: "_path"
-    let _statbuf       = uv_stat -: "_statbuf"
-    (* UV_FS_PRIVATE_FIELDS for Unix below *)
-    let _new_path      = string -: "_new_path"
-    let _file          = int -: "_file" (* TODO type is platform dependent *)
-    let _flags         = int -: "_flags"
-    let _mode          = PosixTypes.mode_t -: "_mode"
-    let _nbufs         = uint -: "_nbufs"
-    let _bufs          = ptr uv_buf -: "_bufs"
-    let _off           = PosixTypes.off_t -: "_off"
-    let _uid           = PosixTypes.uid_t -: "_uid"
-    let _gid           = PosixTypes.gid_t -: "_gid"
-    let _atime         = double -: "_atime"
-    let _mtime         = double -: "_mtime"
-    let _work_req      = uv__work -: "_work_req"
-    let _bufsml        = (array 4 uv_buf) -: "_bufsml"
-    let () = seal uv_fs
-
-    let uv_fs_open =
-      foreign "uv_fs_open" (Loop.uv_loop @-> ptr uv_fs @-> string @-> int @->
-			      int @-> funptr_opt uv_fs_cb @-> returning int)
-    let uv_fs_close =
-      foreign "uv_fs_close" (Loop.uv_loop @-> ptr uv_fs @-> int
-			     @-> funptr_opt uv_fs_cb @-> returning int)
-    let uv_fs_read =
-      foreign "uv_fs_read" (Loop.uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf (* TODO wil this work? *)
-			    @-> int @-> long @-> funptr_opt uv_fs_cb
-			    @-> returning int)
-
-    let uv_fs_write =
-      foreign "uv_fs_write" (Loop.uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf
-			     @-> int @-> long @-> funptr_opt uv_fs_cb
-			     @-> returning int)
-
-    let uv_fs_stat =
-      foreign "uv_fs_stat" (Loop.uv_loop @-> ptr uv_fs @-> string @-> funptr_opt uv_fs_cb @-> returning int)
 
     let refs = Refcount.create ()
     let ref_incr = Refcount.incr refs
@@ -224,88 +106,88 @@ module FS =
       | Some cb -> Some (make_callback cb)
 
     let openfile ?(loop=default_loop) ?cb ?(perm=0o644) (filename : string) flags  =
-      let data = addr (make uv_fs) in
+      let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in
-      let _ = uv_fs_open loop data filename flags perm cb' in
+      let _ = C.uv_fs_open loop data filename flags perm cb' in
       {req=data}
 
     let close ?(loop=default_loop) ?cb file =
-      let data = addr (make uv_fs) in
+      let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in
-      let _ = uv_fs_close loop data file cb' in
+      let _ = C.uv_fs_close loop data file cb' in
       {req=data}
 
     let read ?(loop=default_loop) ?cb ?(offset=(-1)) file = (* TODO what should offset be? *)
-      let data = addr (make uv_fs) in
+      let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in
       (* Allocate read buffer *)
       let buf_len = 1024 in
       let buf = Bigarray.(Array1.create char c_layout buf_len) in
       let buf_ptr = bigarray_start array1 buf in
-      let buf_data = make uv_buf in
-      let _ = setf buf_data _uv_buf_base buf_ptr in
-      let _ = setf buf_data _uv_buf_len (Unsigned.Size_t.of_int buf_len) in
-      let arr = CArray.make uv_buf 1 in
+      let buf_data = make C.uv_buf in
+      let _ = setf buf_data C._uv_buf_base buf_ptr in
+      let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
+      let arr = CArray.make C.uv_buf 1 in
       let _ = CArray.set arr 0 buf_data in  (* TODO may be able to make this simpler *)
-      let _ = uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
+      let _ = C.uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
       {req=data}
 
     let write ?(loop=default_loop) ?cb ?(offset=(-1)) file buf = (* TODO offset, bufs *)
-      let data = addr (make uv_fs) in
+      let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in
       (* Allocate buf_t structure *)
       let buf_ptr = bigarray_start array1 buf in
-      let buf_data = make uv_buf in
-      let _ = setf buf_data _uv_buf_base buf_ptr in
+      let buf_data = make C.uv_buf in
+      let _ = setf buf_data C._uv_buf_base buf_ptr in
       let buf_len = Bigarray.Array1.dim buf in
-      let _ = setf buf_data _uv_buf_len (Unsigned.Size_t.of_int buf_len) in
+      let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
       (* TODO just passing a single guy here... *)
-      let _ = uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
+      let _ = C.uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
       {req=data}
 
     let stat ?(loop=default_loop) ?cb (filename : string) =
-      let data = addr (make uv_fs) in
+      let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in
-      let _ = uv_fs_stat loop data filename cb' in (* TODO raise exception *)
+      let _ = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
       {req=data}
 
   (* Accessors *)
     let result fs =
-      let f = getf !@(fs.req) _result in
+      let f = getf !@(fs.req) C._result in
       try
 	let i = coerce PosixTypes.ssize_t int64_t f in
 	Signed.Int64.to_int64 i
-      with exn -> Printf.printf "Oh no!\n"; raise exn
+      with exn -> Printf.printf "Oh no!\n"; raise exn (* TODO remove this *)
 
-    let path fs = getf !@(fs.req) _path
+    let path fs = getf !@(fs.req) C._path
 
     let buf fs =
-      let b = getf !@(fs.req) _bufs in (* TODO make this type work with win *)
-      let data = getf !@b _uv_buf_base in (* TODO this assumes there is one buf *)
-      let len = getf !@b _uv_buf_len in
+      let b = getf !@(fs.req) C._bufs in (* TODO make this type work with win *)
+      let data = getf !@b C._uv_buf_base in (* TODO this assumes there is one buf *)
+      let len = getf !@b C._uv_buf_len in
       bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.Char data
 
     let statbuf fs =
-      let sb = getf !@(fs.req) _statbuf in
+      let sb = getf !@(fs.req) C._statbuf in
       let f conv field = conv (getf sb field) in
       let i = f Unsigned.UInt64.to_int64 in
       let t = f from_uv_timespec in
-      let st_dev = i _st_dev in
-      let st_mode = i _st_mode in
-      let st_nlink = i _st_nlink in
-      let st_uid = i _st_uid in
-      let st_gid = i _st_gid in
-      let st_rdev = i _st_rdev in
-      let st_ino = i _st_ino in
-      let st_size = i _st_size in
-      let st_blksize = i _st_blksize in
-      let st_blocks = i _st_blocks in
-      let st_flags = i _st_flags in
-      let st_gen = i _st_gen in
-      let st_atim = t _st_atim in
-      let st_mtim = t _st_mtim in
-      let st_ctim = t _st_ctim in
-      let st_birthtim = t _st_birthtim in
+      let st_dev = i C._st_dev in
+      let st_mode = i C._st_mode in
+      let st_nlink = i C._st_nlink in
+      let st_uid = i C._st_uid in
+      let st_gid = i C._st_gid in
+      let st_rdev = i C._st_rdev in
+      let st_ino = i C._st_ino in
+      let st_size = i C._st_size in
+      let st_blksize = i C._st_blksize in
+      let st_blocks = i C._st_blocks in
+      let st_flags = i C._st_flags in
+      let st_gen = i C._st_gen in
+      let st_atim = t C._st_atim in
+      let st_mtim = t C._st_mtim in
+      let st_ctim = t C._st_ctim in
+      let st_birthtim = t C._st_birthtim in
       {st_dev; st_mode; st_nlink; st_uid; st_gid; st_rdev; st_ino; st_size;
        st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
        st_birthtim}
