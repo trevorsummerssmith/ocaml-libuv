@@ -73,7 +73,7 @@ struct
   let _data          = ptr void -: "data"
   let _uv_req_type   = long -: "type"
   let _active_queue  = (array 2 (ptr void)) -: "active_queue"
-  (* TODO reserved *)
+  let _reserved     = (array 4 (ptr void)) -: "reserved"
   let _fs_type       = long -: "fs_type"
   let _uv_fs_uv_loop = uv_loop -: "loop"
   let _cb            = Foreign.funptr uv_fs_cb -: "cb"
