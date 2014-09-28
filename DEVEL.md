@@ -1,7 +1,11 @@
-* This is built to work against the current development version of
-  libuv -- 0.11.29.
+* This is built to work against the 1.0 release candidate version of
+  libuv -- 1.0.0-rc (https://github.com/joyent/libuv/tree/v1.0.0-rc1)
 
 * As few dependencies as possible (no Core)
+
+TODO: when we move from corebuild to ocamlbuild we get an error about the hashtbl link.
+The equals doesnt work with the function suggesting that it is using the poly cmp or equal
+and not the physical one. Need to look into thi
 
 Notes:
   - A loop is a handle. Most things are handles.
