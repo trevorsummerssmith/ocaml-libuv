@@ -165,7 +165,7 @@ module FS =
       let b = getf !@(fs.req) C._bufs in (* TODO make this type work with win *)
       let data = getf !@b C._uv_buf_base in (* TODO this assumes there is one buf *)
       let len = getf !@b C._uv_buf_len in
-      bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.Char data
+      bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.char data
 
     let statbuf fs =
       let sb = getf !@(fs.req) C._statbuf in
