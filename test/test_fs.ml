@@ -56,6 +56,20 @@ let test_blocking_fs_read _ =
   let buf = Uv.FS.buf read_request in
   assert_equal (Uv.FS.string_of_iobuf buf) "test"
 
+let test_fs_unlink _ =
+  let filename = mk_tmpfile "" in
+  let unlink_callback _ =
+    assert_bool "File exists after unlink" (not (Sys.file_exists filename));
+  in
+  let _ = Uv.FS.unlink filename ~cb:unlink_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_unlink _ =
+  let filename = mk_tmpfile "" in
+  let _ = Uv.FS.unlink filename in
+  assert_bool "File exists after unlink" (not (Sys.file_exists filename))
+
+
 let suite =
   "fs_suite">:::
     [
@@ -63,4 +77,6 @@ let suite =
       "blocking_fs_stat">::test_blocking_fs_stat;
       "fs_read">::test_fs_read;
       "blocking_fs_read">::test_blocking_fs_read;
+      "fs_unlink">::test_fs_unlink;
+      "blocking_fs_unlink">::test_blocking_fs_unlink;
     ]
