@@ -163,6 +163,13 @@ module FS =
       let _ = C.uv_fs_mkdir loop data filename mode cb' in
       {req=data}
 
+    let mkdtemp ?(loop=default_loop) ?cb (template : string) =
+      assert ((Str.last_chars template 6) = "XXXXXX");
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_mkdtemp loop data template cb' in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in

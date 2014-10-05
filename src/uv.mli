@@ -60,6 +60,7 @@ sig
   val stat : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val unlink : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val mkdir : ?loop:Loop.t -> ?cb:(t -> unit) -> ?mode:int -> string -> t
+  val mkdtemp : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
 
   (* Accessor functions *)
   val buf : t -> iobuf

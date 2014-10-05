@@ -137,6 +137,34 @@ let test_blocking_fs_mkdir _ =
   Unix.rmdir target_dir_path;
   Unix.rmdir temp_dir
 
+let test_fs_mkdtemp _ =
+  let temp_dir = mkdtemp () in
+  let template = (Filename.concat temp_dir "lalaXXXXXX") in
+  let mkdtemp_callback request =
+    let dir_path = Uv.FS.path request in
+    assert_bool "is dir" (Sys.file_exists dir_path &&
+                          Sys.is_directory dir_path);
+    let prefix_len = (String.length template) - 6 in
+    let prefix str = Str.first_chars str prefix_len in
+    assert_bool "dir name" (prefix dir_path = prefix template);
+    Unix.rmdir dir_path;
+    Unix.rmdir temp_dir
+  in
+  let _ = Uv.FS.mkdtemp template ~cb:mkdtemp_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_mkdtemp _ =
+  let temp_dir = mkdtemp () in
+  let template = (Filename.concat temp_dir "lalaXXXXXX") in
+  let mkdtemp_request = Uv.FS.mkdtemp template in
+  let dir_path = Uv.FS.path mkdtemp_request in
+  assert_bool "is dir" (Sys.file_exists dir_path && Sys.is_directory dir_path);
+  let prefix_len = (String.length template) - 6 in
+  let prefix str = Str.first_chars str prefix_len in
+  assert_bool "dir name" (prefix dir_path = prefix template);
+  Unix.rmdir dir_path;
+  Unix.rmdir temp_dir
+
 let suite =
   "fs_suite">:::
     [
@@ -150,4 +178,6 @@ let suite =
       "blocking_fs_unlink">::test_blocking_fs_unlink;
       "fs_mkdir">::test_fs_mkdir;
       "blocking_fs_mkdir">::test_blocking_fs_mkdir;
+      "fs_mkdtemp">::test_fs_mkdtemp;
+      "blocking_fs_mkdtemp">::test_blocking_fs_mkdtemp;
     ]
