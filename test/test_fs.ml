@@ -38,6 +38,30 @@ let test_blocking_fs_stat _ =
   assert_equal (Uv.FS.path fs) filename;
   Unix.unlink filename
 
+let test_fs_fstat _ =
+  (* Same as above, but make sure that sync call works *)
+  let filename = mk_tmpfile "boo" in
+  let rec open_callback request =
+    let fd = Int64.to_int (Uv.FS.result request) in
+    let _ = Uv.FS.fstat fd ~cb:fstat_callback in ()
+  and fstat_callback request =
+    let stats = Uv.FS.statbuf request in
+    assert_equal stats.st_size (Int64.of_int 3);
+    Unix.unlink filename
+  in
+  let open_request = Uv.FS.openfile filename 0 ~cb:open_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_fstat _ =
+  (* Same as above, but make sure that sync call works *)
+  let filename = mk_tmpfile "boo" in
+  let open_request = Uv.FS.openfile filename 0 in
+  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fstat_request = Uv.FS.fstat fd in
+  let stats = Uv.FS.statbuf fstat_request in
+  assert_equal stats.st_size (Int64.of_int 3);
+  Unix.unlink filename
+
 let test_fs_read _ =
   let test_string = "test" in
   let fd = ref 0 in
@@ -183,6 +207,8 @@ let suite =
     [
       "fs_stat">::test_fs_stat;
       "blocking_fs_stat">::test_blocking_fs_stat;
+      "fs_fstat">::test_fs_fstat;
+      "blocking_fs_fstat">::test_blocking_fs_fstat;
       "fs_read">::test_fs_read;
       "blocking_fs_read">::test_blocking_fs_read;
       "fs_write">::test_fs_write;
