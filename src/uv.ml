@@ -151,6 +151,12 @@ module FS =
       let _ = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
       {req=data}
 
+    let fstat ?(loop=default_loop) ?cb (fd : int) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_fstat loop data fd cb' in
+      {req=data}
+
     let unlink ?(loop=default_loop) ?cb (filename : string) =
       let data = addr (make C.uv_fs) in
       let cb' = make_callback_opt cb in

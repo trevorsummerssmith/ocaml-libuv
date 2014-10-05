@@ -58,10 +58,12 @@ sig
   val read : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> t
   val write : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> iobuf -> t
   val stat : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
+  val fstat : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
   val unlink : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val mkdir : ?loop:Loop.t -> ?cb:(t -> unit) -> ?mode:int -> string -> t
   val mkdtemp : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val rmdir : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
+  (* TODO: scandir *)
 
   (* Accessor functions *)
   val buf : t -> iobuf
