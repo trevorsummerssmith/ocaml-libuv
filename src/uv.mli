@@ -66,5 +66,9 @@ sig
   val statbuf : t -> stat
   (* TODO statbuf -- should we just let everyone access it? Or try to change the 
    signatures for the methods that actually use it? *)
+
+  (* Utilities *)
+  val string_of_iobuf : ?len:int -> iobuf -> string
+  val iobuf_of_string : string -> iobuf
 end
 
