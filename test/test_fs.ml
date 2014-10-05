@@ -9,6 +9,12 @@ let mk_tmpfile contents : string =
   close_out chan;
   tmpfile_name
 
+let mkdtemp () : string =
+  let tmpdir = Filename.temp_file "foo" ".tmp" in
+  Unix.unlink tmpdir;
+  Unix.mkdir tmpdir 0o755;
+  tmpdir
+
 let test_fs_stat _ =
   let cb fs =
     let stats : Uv.stat = Uv.FS.statbuf fs in
@@ -104,6 +110,26 @@ let test_blocking_fs_unlink _ =
   let _ = Uv.FS.unlink filename in
   assert_bool "File exists after unlink" (not (Sys.file_exists filename))
 
+let test_fs_mkdir _ =
+  let temp_dir = mkdtemp () in
+  let target_dir_path = (Filename.concat temp_dir "test_dir") in
+  let mkdir_callback _ =
+    assert_bool "Dir" (Sys.file_exists target_dir_path &&
+                       Sys.is_directory target_dir_path);
+    Unix.rmdir target_dir_path;
+    Unix.rmdir temp_dir
+  in
+  let _ = Uv.FS.mkdir target_dir_path ~cb:mkdir_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_mkdir _ =
+  let temp_dir = mkdtemp () in
+  let target_dir_path = (Filename.concat temp_dir "test_dir") in
+  let _ = Uv.FS.mkdir target_dir_path in
+  assert_bool "Dir" (Sys.file_exists target_dir_path &&
+                     Sys.is_directory target_dir_path);
+  Unix.rmdir target_dir_path;
+  Unix.rmdir temp_dir
 
 let suite =
   "fs_suite">:::
@@ -116,4 +142,6 @@ let suite =
       "blocking_fs_write">::test_blocking_fs_write;
       "fs_unlink">::test_fs_unlink;
       "blocking_fs_unlink">::test_blocking_fs_unlink;
+      "fs_mkdir">::test_fs_mkdir;
+      "blocking_fs_mkdir">::test_blocking_fs_mkdir;
     ]

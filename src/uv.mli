@@ -59,6 +59,7 @@ sig
   val write : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> iobuf -> t
   val stat : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val unlink : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
+  val mkdir : ?loop:Loop.t -> ?cb:(t -> unit) -> ?mode:int -> string -> t
 
   (* Accessor functions *)
   val buf : t -> iobuf
