@@ -25,7 +25,8 @@ let test_fs_stat _ =
   let filename = mk_tmpfile "hello" in
   let fs = Uv.FS.stat filename ~cb:cb in
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
-  assert_equal (Uv.FS.path fs) filename
+  assert_equal (Uv.FS.path fs) filename;
+  Unix.unlink filename
 
 let test_blocking_fs_stat _ =
   (* Same as above, but make sure that sync call works *)
@@ -34,7 +35,8 @@ let test_blocking_fs_stat _ =
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
   let stats = Uv.FS.statbuf fs in
   assert_equal stats.st_size (Int64.of_int 3);
-  assert_equal (Uv.FS.path fs) filename
+  assert_equal (Uv.FS.path fs) filename;
+  Unix.unlink filename
 
 let test_fs_read _ =
   let test_string = "test" in
@@ -50,7 +52,8 @@ let test_fs_read _ =
   in
   let filename = mk_tmpfile test_string in
   let _ = Uv.FS.openfile filename 0 ~cb:open_callback in
-  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
+  Unix.unlink filename
 
 let test_blocking_fs_read _ =
   let test_string = "test" in
@@ -60,7 +63,8 @@ let test_blocking_fs_read _ =
   let fd = Int64.to_int (Uv.FS.result open_request) in
   let read_request = Uv.FS.read fd in
   let buf = Uv.FS.buf read_request in
-  assert_equal (Uv.FS.string_of_iobuf buf) "test"
+  assert_equal (Uv.FS.string_of_iobuf buf) "test";
+  Unix.unlink filename
 
 (* TODO: put these somewhere more appropriate *)
 let o_creat = 0o100
@@ -79,7 +83,8 @@ let test_fs_write _ =
   and close_callback _ =
     let input_channel = open_in filename in
     let data = input_line input_channel in
-    assert_equal "test" data
+    assert_equal "test" data;
+    Unix.unlink filename
   in
   let flags = (o_creat lor o_wronly lor o_trunc) in
   let _ = Uv.FS.openfile filename flags ~cb:open_callback in
@@ -95,7 +100,8 @@ let test_blocking_fs_write _ =
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
   let input_channel = open_in filename in
   let data = input_line input_channel in
-  assert_equal "test" data
+  assert_equal "test" data;
+  Unix.unlink filename
 
 let test_fs_unlink _ =
   let filename = mk_tmpfile "" in
