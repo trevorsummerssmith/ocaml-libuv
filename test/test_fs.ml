@@ -39,27 +39,58 @@ let test_blocking_fs_stat _ =
   Unix.unlink filename
 
 let test_fs_fstat _ =
-  (* Same as above, but make sure that sync call works *)
   let filename = mk_tmpfile "boo" in
+  let fd = ref 0 in
   let rec open_callback request =
-    let fd = Int64.to_int (Uv.FS.result request) in
-    let _ = Uv.FS.fstat fd ~cb:fstat_callback in ()
+    fd := Int64.to_int (Uv.FS.result request);
+    let _ = Uv.FS.fstat !fd ~cb:fstat_callback in ()
   and fstat_callback request =
     let stats = Uv.FS.statbuf request in
     assert_equal stats.st_size (Int64.of_int 3);
+    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+  and close_callback _ =
     Unix.unlink filename
   in
   let open_request = Uv.FS.openfile filename 0 ~cb:open_callback in
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
 
 let test_blocking_fs_fstat _ =
-  (* Same as above, but make sure that sync call works *)
   let filename = mk_tmpfile "boo" in
   let open_request = Uv.FS.openfile filename 0 in
   let fd = Int64.to_int (Uv.FS.result open_request) in
   let fstat_request = Uv.FS.fstat fd in
   let stats = Uv.FS.statbuf fstat_request in
   assert_equal stats.st_size (Int64.of_int 3);
+  Unix.unlink filename
+
+let test_fs_lstat _ =
+  let filename = mk_tmpfile "boo" in
+  let tmpdir = mkdtemp () in
+  let linkpath = (Filename.concat tmpdir "link") in
+  Unix.symlink filename linkpath;
+  let lstat_callback request =
+    let stats = Uv.FS.statbuf request in
+    assert_not_equal stats.st_size (Int64.of_int 3);
+    assert_equal (Uv.FS.path request) linkpath;
+    Unix.unlink linkpath;
+    Unix.rmdir tmpdir;
+    Unix.unlink filename
+  in
+  let _ = Uv.FS.lstat linkpath ~cb:lstat_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_lstat _ =
+  let filename = mk_tmpfile "boo" in
+  let tmpdir = mkdtemp () in
+  let linkpath = (Filename.concat tmpdir "link") in
+  Unix.symlink filename linkpath;
+  let fs = Uv.FS.lstat linkpath in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
+  let stats = Uv.FS.statbuf fs in
+  assert_not_equal stats.st_size (Int64.of_int 3);
+  assert_equal (Uv.FS.path fs) linkpath;
+  Unix.unlink linkpath;
+  Unix.rmdir tmpdir;
   Unix.unlink filename
 
 let test_fs_read _ =
@@ -209,6 +240,8 @@ let suite =
       "blocking_fs_stat">::test_blocking_fs_stat;
       "fs_fstat">::test_fs_fstat;
       "blocking_fs_fstat">::test_blocking_fs_fstat;
+      "fs_lstat">::test_fs_lstat;
+      "blocking_fs_lstat">::test_blocking_fs_lstat;
       "fs_read">::test_fs_read;
       "blocking_fs_read">::test_blocking_fs_read;
       "fs_write">::test_fs_write;
