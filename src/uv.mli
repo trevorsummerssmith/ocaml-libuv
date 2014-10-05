@@ -64,6 +64,7 @@ sig
   val mkdir : ?loop:Loop.t -> ?cb:(t -> unit) -> ?mode:int -> string -> t
   val mkdtemp : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
   val rmdir : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
+  val rename : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> string -> t
   (* TODO: scandir *)
 
   (* Accessor functions *)

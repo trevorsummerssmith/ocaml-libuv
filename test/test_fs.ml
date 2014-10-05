@@ -51,7 +51,7 @@ let test_fs_fstat _ =
   and close_callback _ =
     Unix.unlink filename
   in
-  let open_request = Uv.FS.openfile filename 0 ~cb:open_callback in
+  let _ = Uv.FS.openfile filename 0 ~cb:open_callback in
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
 
 let test_blocking_fs_fstat _ =
@@ -233,6 +233,35 @@ let test_blocking_fs_rmdir _ =
   let _ = Uv.FS.rmdir temp_dir in
   assert_bool "dir gone" (not (Sys.file_exists temp_dir))
 
+let test_fs_rename _ =
+  let temp_dir = mkdtemp () in
+  let sourcepath = mk_tmpfile "test" in
+  let destpath = Filename.concat temp_dir "target" in
+  let rename_callback _ =
+    assert_bool "original file gone" (not (Sys.file_exists sourcepath));
+    assert_bool "new file present" (Sys.file_exists destpath);
+    let input_channel = open_in destpath in
+    let data = input_line input_channel in
+    assert_equal "test" data;
+    Unix.unlink destpath;
+    Unix.rmdir temp_dir
+  in
+  let _ = Uv.FS.rename sourcepath destpath ~cb:rename_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_rename _ =
+  let temp_dir = mkdtemp () in
+  let sourcepath = mk_tmpfile "test" in
+  let destpath = Filename.concat temp_dir "target" in
+  let _ = Uv.FS.rename sourcepath destpath in
+  assert_bool "original file gone" (not (Sys.file_exists sourcepath));
+  assert_bool "new file present" (Sys.file_exists destpath);
+  let input_channel = open_in destpath in
+  let data = input_line input_channel in
+  assert_equal "test" data;
+  Unix.unlink destpath;
+  Unix.rmdir temp_dir
+
 let suite =
   "fs_suite">:::
     [
@@ -254,4 +283,6 @@ let suite =
       "blocking_fs_mkdtemp">::test_blocking_fs_mkdtemp;
       "fs_rmdir">::test_fs_rmdir;
       "blocking_fs_rmdir">::test_blocking_fs_rmdir;
+      "fs_rename">::test_fs_rename;
+      "blocking_fs_rename">::test_blocking_fs_rename;
     ]
