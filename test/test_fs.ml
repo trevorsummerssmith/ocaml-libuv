@@ -56,6 +56,41 @@ let test_blocking_fs_read _ =
   let buf = Uv.FS.buf read_request in
   assert_equal (Uv.FS.string_of_iobuf buf) "test"
 
+(* TODO: put these somewhere more appropriate *)
+let o_creat = 0o100
+let o_wronly = 0o1
+let o_trunc = 0o1000
+
+let test_fs_write _ =
+  let filename = mk_tmpfile "" in
+  let fd = ref 0 in
+  let rec open_callback request =
+    fd := Int64.to_int (Uv.FS.result request);
+    let buf = (Uv.FS.iobuf_of_string "test") in
+    let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
+  and write_callback _ =
+    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+  and close_callback _ =
+    let input_channel = open_in filename in
+    let data = input_line input_channel in
+    assert_equal "test" data
+  in
+  let flags = (o_creat lor o_wronly lor o_trunc) in
+  let _ = Uv.FS.openfile filename flags ~cb:open_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_write _ =
+  let filename = mk_tmpfile "" in
+  let flags = (o_creat lor o_wronly lor o_trunc) in
+  let open_request = Uv.FS.openfile filename flags in
+  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let _ = Uv.FS.write fd (Uv.FS.iobuf_of_string "test") in
+  let _ = Uv.FS.close fd in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in
+  let input_channel = open_in filename in
+  let data = input_line input_channel in
+  assert_equal "test" data
+
 let test_fs_unlink _ =
   let filename = mk_tmpfile "" in
   let unlink_callback _ =
@@ -77,6 +112,8 @@ let suite =
       "blocking_fs_stat">::test_blocking_fs_stat;
       "fs_read">::test_fs_read;
       "blocking_fs_read">::test_blocking_fs_read;
+      "fs_write">::test_fs_write;
+      "blocking_fs_write">::test_blocking_fs_write;
       "fs_unlink">::test_fs_unlink;
       "blocking_fs_unlink">::test_blocking_fs_unlink;
     ]
