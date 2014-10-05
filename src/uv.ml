@@ -192,4 +192,30 @@ module FS =
        st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
        st_birthtim}
 
+    (* Utilities *)
+    (* this is an abomination *)
+    let string_of_iobuf ?len buf =
+      let length = match len with
+        | Some(l) -> l
+        | None -> (let p_ref = ref 0 in
+                   for i = ((Bigarray.Array1.dim buf) - 1) downto 0 do
+                     if (Bigarray.Array1.get buf i) = '\000' then
+                       p_ref := i;
+                   done;
+                   !p_ref)
+      in
+      let str = ref "" in
+      for i = 0 to (length - 1) do
+        str := !str ^ (String.make 1 (Bigarray.Array1.get buf i))
+      done;
+      !str
+
+    let iobuf_of_string str =
+      let buf_len = (String.length str) in
+      let buf = Bigarray.(Array1.create char c_layout) buf_len in
+      for i = 0 to ((String.length str) - 1) do
+        Bigarray.Array1.set buf i (String.get str i)
+      done;
+      buf
+
   end
