@@ -165,6 +165,19 @@ let test_blocking_fs_mkdtemp _ =
   Unix.rmdir dir_path;
   Unix.rmdir temp_dir
 
+let test_fs_rmdir _ =
+  let temp_dir = mkdtemp () in
+  let rmdir_callback _ =
+    assert_bool "dir gone" (not (Sys.file_exists temp_dir))
+  in
+  let _ = Uv.FS.rmdir temp_dir ~cb:rmdir_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_rmdir _ =
+  let temp_dir = mkdtemp () in
+  let _ = Uv.FS.rmdir temp_dir in
+  assert_bool "dir gone" (not (Sys.file_exists temp_dir))
+
 let suite =
   "fs_suite">:::
     [
@@ -180,4 +193,6 @@ let suite =
       "blocking_fs_mkdir">::test_blocking_fs_mkdir;
       "fs_mkdtemp">::test_fs_mkdtemp;
       "blocking_fs_mkdtemp">::test_blocking_fs_mkdtemp;
+      "fs_rmdir">::test_fs_rmdir;
+      "blocking_fs_rmdir">::test_blocking_fs_rmdir;
     ]

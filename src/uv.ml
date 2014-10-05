@@ -170,6 +170,12 @@ module FS =
       let _ = C.uv_fs_mkdtemp loop data template cb' in
       {req=data}
 
+    let rmdir ?(loop=default_loop) ?cb (path : string) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_rmdir loop data path cb' in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in
