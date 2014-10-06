@@ -206,6 +206,12 @@ module FS =
       let _ = C.uv_fs_fdatasync loop data file cb' in
       {req=data}
 
+    let ftruncate ?(loop=default_loop) ?cb (file : int) (offset : int) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in

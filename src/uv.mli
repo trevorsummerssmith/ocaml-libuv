@@ -67,6 +67,7 @@ sig
   val rename : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> string -> t
   val fsync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
   val fdatasync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
+  val ftruncate : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> int -> t
   (* TODO: scandir *)
 
   (* Accessor functions *)
