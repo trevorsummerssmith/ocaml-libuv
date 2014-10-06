@@ -98,8 +98,7 @@ let test_fs_read _ =
   let fd = ref 0 in
   let rec open_callback request =
     fd := Int64.to_int (Uv.FS.result request);
-    let _ =
-      Uv.FS.read !fd ~cb:read_callback in ()
+    let _ = Uv.FS.read !fd ~cb:read_callback in ()
   and read_callback request =
     let buf = Uv.FS.buf request in
     let _ = Uv.FS.close !fd in
@@ -262,6 +261,41 @@ let test_blocking_fs_rename _ =
   Unix.unlink destpath;
   Unix.rmdir temp_dir
 
+(* I worry that these tests for fsync don't work on all systems, since
+ * frequently write updates metadata *)
+let test_fs_fsync _ =
+  let filename = mk_tmpfile "test" in
+  let fs_before = Unix.stat filename in
+  let fd = ref 0 in
+  let rec open_callback request =
+    fd := Int64.to_int (Uv.FS.result request);
+    let buf = (Uv.FS.iobuf_of_string "testfsync") in
+    let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
+  and write_callback _ =
+    let _ = Uv.FS.fsync !fd ~cb:fsync_callback in ()
+  and fsync_callback _ =
+    let fs_after = Unix.stat filename in
+    assert_bool "size updated" (not (fs_before.st_size = fs_after.st_size));
+    let _ = Uv.FS.close !fd in ()
+  in
+  let flags = (o_creat lor o_wronly lor o_trunc) in
+  let _ = Uv.FS.openfile filename ~cb:open_callback flags in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_fsync _ =
+  let filename = mk_tmpfile "test" in
+  let fs_before = Unix.stat filename in
+  let flags = (o_creat lor o_wronly lor o_trunc) in
+  let open_request = Uv.FS.openfile filename flags in
+  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let buf = (Uv.FS.iobuf_of_string "testfsync") in
+  let _ = Uv.FS.write fd buf in
+  let _ = Uv.FS.fsync fd in
+  let fs_after = Unix.stat filename in
+  assert_bool "size updated" (not (fs_before.st_size = fs_after.st_size));
+  let _ = Uv.FS.close fd in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
 let suite =
   "fs_suite">:::
     [
@@ -285,4 +319,6 @@ let suite =
       "blocking_fs_rmdir">::test_blocking_fs_rmdir;
       "fs_rename">::test_fs_rename;
       "blocking_fs_rename">::test_blocking_fs_rename;
+      "fs_fsync">::test_fs_fsync;
+      "blocking_fs_fsync">::test_blocking_fs_fsync;
     ]
