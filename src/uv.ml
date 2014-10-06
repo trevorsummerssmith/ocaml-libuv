@@ -200,6 +200,12 @@ module FS =
       let _ = C.uv_fs_fsync loop data file cb' in
       {req=data}
 
+    let fdatasync ?(loop=default_loop) ?cb (file : int) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_fdatasync loop data file cb' in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in
