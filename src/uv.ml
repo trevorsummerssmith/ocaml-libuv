@@ -212,6 +212,13 @@ module FS =
       let _ = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
       {req=data}
 
+    let sendfile ?(loop=default_loop) ?cb ?(offset=0) (in_fd : int) (out_fd : int) (count : int) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = (C.uv_fs_sendfile loop data in_fd out_fd (Int64.of_int offset)
+                 (Unsigned.Size_t.of_int count) cb') in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in

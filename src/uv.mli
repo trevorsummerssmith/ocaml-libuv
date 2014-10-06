@@ -68,6 +68,8 @@ sig
   val fsync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
   val fdatasync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
   val ftruncate : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> int -> t
+  val sendfile : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> int ->
+    int -> t
   (* TODO: scandir *)
 
   (* Accessor functions *)
