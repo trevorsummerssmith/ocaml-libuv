@@ -330,6 +330,34 @@ let test_blocking_fs_fdatasync _ =
   let _ = Uv.FS.close fd in
   let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
 
+let test_fs_ftruncate _ =
+  let filename = mk_tmpfile "test" in
+  let fd = ref 0 in
+  let rec open_callback request =
+    fd := Int64.to_int (Uv.FS.result request);
+    let _ = Uv.FS.ftruncate !fd 2 ~cb:ftruncate_callback in ()
+  and ftruncate_callback _ =
+    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+  and close_callback _ =
+    let input_channel = open_in filename in
+    let data = input_line input_channel in
+    assert_equal "te" data;
+    Unix.unlink filename
+  in
+  let _ = Uv.FS.openfile filename o_wronly ~cb:open_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_ftruncate _ =
+  let filename = mk_tmpfile "test" in
+  let open_request = Uv.FS.openfile filename o_wronly in
+  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let _ = Uv.FS.ftruncate fd 2 in
+  let _ = Uv.FS.close fd in
+  let input_channel = open_in filename in
+  let data = input_line input_channel in
+  assert_equal "te" data;
+  Unix.unlink filename
+
 let suite =
   "fs_suite">:::
     [
@@ -357,4 +385,6 @@ let suite =
       "blocking_fs_fsync">::test_blocking_fs_fsync;
       "fs_fdatasync">::test_fs_fdatasync;
       "blocking_fs_fdatasync">::test_blocking_fs_fdatasync;
+      "fs_ftruncate">::test_fs_ftruncate;
+      "blocking_fs_ftruncate">::test_blocking_fs_ftruncate;
     ]
