@@ -219,6 +219,12 @@ module FS =
                  (Unsigned.Size_t.of_int count) cb') in
       {req=data}
 
+    let chmod ?(loop=default_loop) ?cb (path : string) (mode : int) =
+      let data = addr (make C.uv_fs) in
+      let cb' = make_callback_opt cb in
+      let _ = C.uv_fs_chmod loop data path mode cb' in
+      {req=data}
+
   (* Accessors *)
     let result fs =
       let f = getf !@(fs.req) C._result in

@@ -70,6 +70,7 @@ sig
   val ftruncate : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> int -> t
   val sendfile : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> int ->
     int -> t
+  val chmod : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> int -> t
   (* TODO: scandir *)
 
   (* Accessor functions *)

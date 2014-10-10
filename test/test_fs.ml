@@ -406,6 +406,25 @@ let test_blocking_fs_sendfile _ =
   Unix.unlink target_path;
   Unix.rmdir tempdir
 
+let test_fs_chmod _ =
+  let filename = mk_tmpfile "test" in
+  Unix.chmod filename 0o777;
+  Unix.access filename [R_OK; W_OK; X_OK];
+  let chmod_callback _ =
+    let call () = Unix.access filename [R_OK; W_OK; X_OK] in
+    assert_raises (Unix.Unix_error(Unix.EACCES, "access", filename)) call
+  in
+  let _ = Uv.FS.chmod filename 0o000 ~cb:chmod_callback in
+  let _ = Uv.Loop.run (Uv.Loop.default_loop ()) RunDefault in ()
+
+let test_blocking_fs_chmod _ =
+  let filename = mk_tmpfile "test" in
+  Unix.chmod filename 0o777;
+  Unix.access filename [R_OK; W_OK; X_OK];
+  let _ = Uv.FS.chmod filename 0o000 in
+  let call () = Unix.access filename [R_OK; W_OK; X_OK] in
+  assert_raises (Unix.Unix_error(Unix.EACCES, "access", filename)) call
+
 let suite =
   "fs_suite">:::
     [
@@ -437,4 +456,6 @@ let suite =
       "blocking_fs_ftruncate">::test_blocking_fs_ftruncate;
       "fs_sendfile">::test_fs_sendfile;
       "blocking_fs_sendfile">::test_blocking_fs_sendfile;
+      "fs_chmod">::test_fs_chmod;
+      "blocking_fs_chmod">::test_blocking_fs_chmod;
     ]
