@@ -29,6 +29,47 @@ type stat = {
   st_birthtim : timespec
 }
 
+module Request :
+sig
+  type 'a t
+
+  (* Types that don't need their own modules *)
+
+  type write_req
+  (** Phantom type identifying write requests *)
+
+  type write = write_req t
+  (** The type of write requests *)
+
+  val cancel : 'a t -> unit
+end
+
+module Handle :
+sig
+  type 'a t
+
+  val close : ?cb:('a t -> unit) -> _ t -> unit
+end
+
+module Stream :
+sig
+  type 'a stream
+  (** Phantom type *)
+
+  type 'a t = 'a stream Handle.t
+
+  val listen : ?cb:('a t -> int -> unit) -> 'a t -> int -> unit
+  val accept : 'a t -> 'a t -> unit
+  val read_start : ?cb:('a t -> int -> Buf.t -> unit) -> 'a t -> unit
+  val write : ?cb:(Request.write -> int -> unit) -> 'a t -> Buf.t -> Request.write
+end
+
+module Shutdown :
+sig
+  type shutdown
+  type t = shutdown Request.t
+end
+
 module Loop :
 sig
   type t
@@ -37,13 +78,7 @@ sig
 
   val default_loop : unit -> t
 
-  val run : t -> run_mode -> int
-end
-
-module Request :
-sig
-  type 'a t
-  val cancel : 'a t -> unit
+  val run : ?loop:t -> run_mode -> int
 end
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -68,3 +103,15 @@ sig
    signatures for the methods that actually use it? *)
 end
 
+(* XXX TODO figure what to do with this *)
+type mysock
+val ip4_addr : string -> int -> mysock
+
+module TCP :
+sig
+  type tcp
+  type t = tcp Stream.t
+
+  val init : ?loop:Loop.t -> unit -> t
+  val bind : t -> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> unit
+end

@@ -198,3 +198,33 @@ Questions
   scripts to help search for new keywords?
 * Naming of enums -- do we want to keep to big constants? Or not?
 * buf -- should this be a special io memory
+* Stream: uv_read_start: I think we just use an internal alloc_cb
+  no need to expose this?
+* Exceptions -- see the tcp- example... we cannot just throw exceptions
+  wherever because the end user wants to deal with exceptions in the callback...
+* Stream.accept -- should these be named paramters?
+* TODO when buildling native examples (so I can use ocamldebug) I get a linking error
+ the FIRST time I do the build command, then on the second time the linking error goes
+away and everything works. Something in the build just needs to be tweaked. 10/7
+* Should we try and use the Unix.sockaddr for sockaddr? or try and use the libuv methods?
+  eg see the tcp_echo_server example.
+  let make_sockaddr port : Unix.sockaddr =
+  let open Unix in
+  let host = gethostbyname "localhost" in
+  let inet_addr = host.h_addr_list.(0) in
+  ADDR_INET(inet_addr, port)
+
+  /////
+
+Cstubs -- better debugging: got this error:
+ocamlfind ocamlc -cclib -luv -linkpkg -g -thread -package ctypes -package ctypes.stubs -package ctypes.foreign -syntax camlp4o -package bin_prot.syntax -package sexplib.syntax,comparelib.syntax,fieldslib.syntax,variantslib.syntax -package core lib_gen/libuv_bindings.cmo lib_gen/libuv_bindgen.cmo -o lib_gen/libuv_bindgen.byte
+lib_gen/libuv_bindgen.byte
++ lib_gen/libuv_bindgen.byte
+Fatal error: exception Static.IncompleteType
+Command exited with code 2.
+
+problem was that:
+
+let uv_close_cb = uv_handle @-> returning void
+should have been:
+let uv_close_cb = ptr uv_handle @-> returning void
