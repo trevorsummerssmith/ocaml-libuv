@@ -31,6 +31,8 @@ let on_new_conn (server : 'a Stream.t) (status : int) : unit =
 let make_sockaddr () = ip4_addr "0.0.0.0" server_port
 
 let () =
+  let _ = Printf.printf "(^_^) Server listening on localhost:%d\n%!" server_port in
+  let _ = Printf.printf "      Try `echo -n 'hello' | nc localhost %d`\n%!" server_port in
   let server = TCP.init () in
   let sockaddr = make_sockaddr () in
   let _ = TCP.bind server sockaddr 0 in
