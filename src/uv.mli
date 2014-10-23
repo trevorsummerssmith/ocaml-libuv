@@ -29,6 +29,19 @@ type stat = {
   st_birthtim : timespec
 }
 
+module Loop :
+sig
+  type t
+
+  type run_mode = RunDefault | RunOnce | RunNoWait
+
+  val ok : t -> int64
+
+  val default_loop : unit -> t
+
+  val run : ?loop:t -> run_mode -> int
+end
+
 module Request :
 sig
   type 'a t
@@ -47,6 +60,8 @@ end
 module Handle :
 sig
   type 'a t
+
+  val loop : 'a t -> Loop.t
 
   val close : ?cb:('a t -> unit) -> _ t -> unit
 end
@@ -68,17 +83,6 @@ module Shutdown :
 sig
   type shutdown
   type t = shutdown Request.t
-end
-
-module Loop :
-sig
-  type t
-
-  type run_mode = RunDefault | RunOnce | RunNoWait
-
-  val default_loop : unit -> t
-
-  val run : ?loop:t -> run_mode -> int
 end
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
