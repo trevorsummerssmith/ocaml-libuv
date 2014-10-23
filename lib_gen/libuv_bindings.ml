@@ -289,6 +289,10 @@ struct
 
   (* Begin functions *)
 
+  (* Accessors *)
+  let get_uv_handle_t_loop = F.foreign "get_uv_handle_t_loop"
+      (ptr uv_handle @-> returning uv_loop)
+
   (* uv_handle functions *)
   let uv_close = F.foreign "uv_close"
       (ptr uv_handle @-> Foreign.funptr_opt uv_close_cb @-> returning void)

@@ -20,6 +20,8 @@ struct
   type t = C.uv_loop
   type run_mode = RunDefault | RunOnce | RunNoWait
 
+  let ok t = Ctypes.raw_address_of_ptr t
+
   let run_mode_to_int = function
       RunDefault -> 0
     | RunOnce -> 1
@@ -69,6 +71,10 @@ end
 module Handle =
 struct
   type 'a t = unit ptr
+
+  let loop handle =
+    let ptr = from_voidp C.uv_handle handle in
+    C.get_uv_handle_t_loop ptr
 
   let close ?cb handle =
     (* assume handle is a void ptr *)

@@ -11,6 +11,7 @@ dispatch begin function
       let ctypes = Findlib.query "ctypes" in
       flag ["compile"; "use_ctypes_c_headers"] (S[A"-I"; Px (ctypes.Findlib.location ^ "/..")]);
       flag ["ocaml"; "compile"; "use_libuv_generated_stubs"] (S[Px"src/libuv_generated_stubs.o"]);
+      dep ["ocaml"; "use_accessors"] ["lib_gen/libuv_accessors.o"];
       dep ["ocaml"; "use_libuv_generated_stubs"] ["src/libuv_generated_stubs.o"];
       flag ["ocaml"; "link"; "use_libuv"] (S[A"-cclib"; A"-luv"])
   | _ -> ()
