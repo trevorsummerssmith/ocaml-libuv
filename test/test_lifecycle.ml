@@ -12,24 +12,30 @@ let mk_tmpfile contents : string =
 
 let dataTable = Refcount.create ()
 
-let test_it () =
+let size_uv_fs_t = Unsigned.Size_t.to_int (C.uv_req_size 6)
+let alloc_uv_fs () =
+  let memory = allocate_n char ~count:size_uv_fs_t in
+  coerce (ptr char) (ptr C.uv_fs) memory
+
+let test_expired_callback () =
   (* Pass a callback to libuv. Keep a reference to the data we allocate so
      it doesn't crash. We do NOT keep anything to prevent the callback's closure
-     from getting gc'd. Yet this works. *)
+     from getting gc'd. Callback references a variable so the closure gets
+     allocated. We should get a expired closure exception.
+  *)
   let filename = mk_tmpfile "hello" in
-  let data = addr (make C.uv_fs) in
+  let data = alloc_uv_fs () in
   let _ = begin
-    let cb fs = Printf.printf "XXX Called '%s'\n" (getf !@fs C._path) in
+    let cb fs = let _ = Obj.repr data in Printf.printf "XXX Called '%s'\n" (C.get_uv_fs_t_path fs) in
     let _ = Refcount.incr dataTable data in
     let _ = Gc.compact () in
     let _ = C.uv_fs_stat (C.uv_default_loop ()) data filename (Some cb) in
     let _ = Gc.compact () in ()
   end in
-  let _ = Uv.Loop.run RunDefault in
-  ()
+  assert_raises CallToExpiredClosure (fun () -> Uv.Loop.run RunDefault)
 
 let suite =
   "lifecycle suite">:::
   [
-  "test it">::test_it
+  "test expired callback">::test_expired_callback
   ]
