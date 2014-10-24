@@ -20,6 +20,11 @@ struct
 
   (* types first, then callbacks, then structure fields *)
 
+  (* Get the size of all of the types to be used to allocate them.
+     We'll probably replace this soon with constants. *)
+  let uv_handle_size = F.foreign "uv_handle_size" (int @-> returning size_t)
+  let uv_req_size = F.foreign "uv_req_size" (int @-> returning size_t)
+
   (* TODO figure out what to do with this?*)
   type uv_sockaddr
   let uv_sockaddr : uv_sockaddr structure typ = structure "sockaddr"
@@ -165,18 +170,6 @@ struct
   let _tv_nsec = field uv_timespec "tv_nsec" long
   let () = seal uv_timespec
 
-  (* uv__work *)
-  type uv__work (* we'll keep their convention of 2 underscores? *)
-  let uv__work : uv__work structure typ = structure "uv__work"
-  let uv__work_work_cb = ptr uv__work @-> returning void
-  let uv__work_done_cb = ptr uv__work @-> int @-> returning void
-
-  let uv__work_work = field uv__work "work" (Foreign.funptr uv__work_work_cb)
-  let uv__work_done = field uv__work "done" (Foreign.funptr uv__work_done_cb)
-  let uv__work_loop = field uv__work "loop" uv_loop
-  let uv__work_wq = field uv__work "wq" (array 2 (ptr void))
-  let () = seal uv__work
-
   (* uv_stat *)
   type uv_stat
   let uv_stat : uv_stat structure typ = structure "uv_stat_t"
@@ -246,37 +239,18 @@ struct
 
   (* uv_fs *)
   type uv_fs
-  let uv_fs : uv_fs structure typ = structure "uv_fs_s"
-  let uv_fs_cb = ptr uv_fs @-> returning void
+  (* We're never making memory for the abstract type. Instead we're allocating
+     a char array and then coercing it to the ptr typ. So this doesn't really matter.
+     Just don't ever try and make one of these.
 
-  let ( -: ) ty label = field uv_fs label ty
-  let _data          = ptr void -: "data"
-  let _uv_req_type   = long -: "type"
-  let _active_queue  = (array 2 (ptr void)) -: "active_queue"
-  let _reserved     = (array 4 (ptr void)) -: "reserved"
-  let _fs_type       = long -: "fs_type"
-  let _uv_fs_uv_loop = uv_loop -: "loop"
-  let _cb            = Foreign.funptr uv_fs_cb -: "cb"
-  let _result        = PosixTypes.ssize_t -: "result"
-  let _uv_fs_ptr     = ptr void -: "ptr"
-  let _path          = string -: "path"
-  let _statbuf       = uv_stat -: "statbuf"
-  (* UV_FS_PRIVATE_FIELDS for Unix below *)
-  let _new_path      = string -: "new_path"
-  let _file          = int -: "file" (* TODO type is platform dependent *)
-  let _flags         = int -: "flags"
-  let _mode          = PosixTypes.mode_t -: "mode"
-  let _nbufs         = uint -: "nbufs"
-  let _bufs          = ptr uv_buf -: "bufs"
-  let _off           = PosixTypes.off_t -: "off"
-  let _uid           = PosixTypes.uid_t -: "uid"
-  let _gid           = PosixTypes.gid_t -: "gid"
-  let _atime         = double -: "atime"
-  let _mtime         = double -: "mtime"
-  let _work_req      = uv__work -: "work_req"
-  let _bufsml        = (array 4 uv_buf) -: "bufsml"
-  (* end UV_FS_PRIVATE_FIELDS *)
-  let () = seal uv_fs
+     N.b. Ideally we could define the size here just to make this all safer...
+     however we cannot call the functions (uv_req_size/uv_handle_size) inside of
+     this functor. I think soon we'll add the sizes by just getting the constants
+     we're already doing that all over this code base, then we could at least
+     put in correct size here and it wouldn't be as brittle.
+  *)
+  let uv_fs : uv_fs abstract typ = abstract ~name:"uv_fs_t" ~size:4 ~alignment:4
+  let uv_fs_cb = ptr uv_fs @-> returning void
 
   (* uv_dirent *)
   type uv_dirent
@@ -292,6 +266,21 @@ struct
   (* Accessors *)
   let get_uv_handle_t_loop = F.foreign "get_uv_handle_t_loop"
       (ptr uv_handle @-> returning uv_loop)
+
+  let get_uv_fs_t_loop = F.foreign "get_uv_fs_t_loop"
+      (ptr uv_fs @-> returning uv_loop)
+
+  let get_uv_fs_t_result = F.foreign "get_uv_fs_t_result"
+      (ptr uv_fs @-> returning PosixTypes.ssize_t)
+
+  let get_uv_fs_t_path = F.foreign "get_uv_fs_t_path"
+      (ptr uv_fs @-> returning string)
+
+  let get_uv_fs_t_bufs = F.foreign "get_uv_fs_t_bufs"
+      (ptr uv_fs @-> returning (ptr uv_buf)) (* XXX TMP going to nix this. *)
+
+  let get_uv_fs_t_statbuf = F.foreign "get_uv_fs_t_statbuf"
+      (ptr uv_fs @-> returning (ptr uv_stat))(* XXX TMP going to nix this. *)
 
   (* uv_handle functions *)
   let uv_close = F.foreign "uv_close"

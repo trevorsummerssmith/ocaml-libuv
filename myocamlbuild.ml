@@ -7,7 +7,6 @@ let make_accessors () =
   3) Compile the c file into an object file
   4) Add dependencies *)
   flag ["compile"; "use_accessor_headers"] (S[A"-I"; Px ("../src")]);
-  (*)flag ["compile"; "use_accessors"] (S[A"-I"; Px ("../src")]);*)
   flag ["compile"; "use_ctypes_c_headers"] (S[A"-I"; Px ("../src")]);
   rule "generate libuv_accessors.{c,h}"
     ~prods:["src/libuv_accessors.c"; "src/libuv_accessors.h"]

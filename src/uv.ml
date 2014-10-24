@@ -266,20 +266,27 @@ struct
       None -> None
     | Some cb -> Some (make_callback cb)
 
+  let size_uv_fs_t = Unsigned.Size_t.to_int (C.uv_req_size 6)
+  (* 6 is UV_FS Going to shortly get these numbers in from C *)
+
+  let alloc_uv_fs () =
+    let memory = allocate_n char ~count:size_uv_fs_t in
+    coerce (ptr char) (ptr C.uv_fs) memory
+
   let openfile ?(loop=default_loop) ?cb ?(perm=0o644) (filename : string) flags  =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_open loop data filename flags perm cb' in
     c_to_ocaml data
 
   let close ?(loop=default_loop) ?cb file =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_close loop data file cb' in
     c_to_ocaml data
 
   let read ?(loop=default_loop) ?cb ?(offset=(-1)) file = (* TODO what should offset be? *)
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     (* Allocate read buffer *)
     let buf_len = 1024 in
@@ -294,7 +301,7 @@ struct
     c_to_ocaml data
 
   let write ?(loop=default_loop) ?cb ?(offset=(-1)) file buf = (* TODO offset, bufs *)
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     (* Allocate buf_t structure *)
     let buf_ptr = bigarray_start array1 buf in
@@ -307,81 +314,81 @@ struct
     c_to_ocaml data
 
   let stat ?(loop=default_loop) ?cb (filename : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
     c_to_ocaml data
 
   let fstat ?(loop=default_loop) ?cb (fd : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_fstat loop data fd cb' in
     c_to_ocaml data
 
   let lstat ?(loop=default_loop) ?cb (filename : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_lstat loop data filename cb' in
     c_to_ocaml data
 
   let unlink ?(loop=default_loop) ?cb (filename : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_unlink loop data filename cb' in
     c_to_ocaml data
 
   let mkdir ?(loop=default_loop) ?cb ?(mode=0o775) (filename : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_mkdir loop data filename mode cb' in
     c_to_ocaml data
 
   let mkdtemp ?(loop=default_loop) ?cb (template : string) =
     assert ((Str.last_chars template 6) = "XXXXXX");
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_mkdtemp loop data template cb' in
     c_to_ocaml data
 
   let rmdir ?(loop=default_loop) ?cb (path : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_rmdir loop data path cb' in
     c_to_ocaml data
 
   let rename ?(loop=default_loop) ?cb (path : string) (new_path : string) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_rename loop data path new_path cb' in
     c_to_ocaml data
 
   let fsync ?(loop=default_loop) ?cb (file : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_fsync loop data file cb' in
     c_to_ocaml data
 
   let fdatasync ?(loop=default_loop) ?cb (file : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_fdatasync loop data file cb' in
     c_to_ocaml data
 
   let ftruncate ?(loop=default_loop) ?cb (file : int) (offset : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
     c_to_ocaml data
 
   let sendfile ?(loop=default_loop) ?cb ?(offset=0) (in_fd : int) (out_fd : int) (count : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = (C.uv_fs_sendfile loop data in_fd out_fd (Int64.of_int offset)
                (Unsigned.Size_t.of_int count) cb') in
     c_to_ocaml data
 
   let chmod ?(loop=default_loop) ?cb (path : string) (mode : int) =
-    let data = addr (make C.uv_fs) in
+    let data = alloc_uv_fs () in
     let cb' = make_callback_opt cb in
     let _ = C.uv_fs_chmod loop data path mode cb' in
     c_to_ocaml data
@@ -390,7 +397,7 @@ struct
 
   let result fs =
     let fs = ocaml_to_c fs in
-    let f = getf !@fs C._result in
+    let f = C.get_uv_fs_t_result fs in
     try
       let i = coerce PosixTypes.ssize_t int64_t f in
       Signed.Int64.to_int64 i
@@ -398,18 +405,20 @@ struct
 
   let path fs =
     let fs = ocaml_to_c fs in
-    getf !@fs C._path
+    C.get_uv_fs_t_path fs
 
   let buf fs =
+    (* TODO this will get nixed soon bcause it is not part of the
+       public interface *)
     let fs = ocaml_to_c fs in
-    let b = getf !@fs C._bufs in (* TODO make this type work with win *)
+    let b = C.get_uv_fs_t_bufs fs in
     let data = getf !@b C._uv_buf_base in (* TODO this assumes there is one buf *)
     let len = getf !@b C._uv_buf_len in
     bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.Char data
 
   let statbuf fs =
     let fs = ocaml_to_c fs in
-    let sb = getf !@fs C._statbuf in
+    let sb = !@(C.get_uv_fs_t_statbuf fs) in
     let f conv field = conv (getf sb field) in
     let i = f Unsigned.UInt64.to_int64 in
     let t = f from_uv_timespec in
