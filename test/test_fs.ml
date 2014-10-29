@@ -1,7 +1,7 @@
 open OUnit
 open Ctypes
 
-let assert_not_equal = assert_equal ~cmp:( <> )
+let assert_not_equal a b = assert_equal ~cmp:( <> ) a b
 
 let mk_tmpfile contents : string =
   let (tmpfile_name, chan) = Filename.open_temp_file "foo" "txt" in
@@ -20,7 +20,7 @@ let test_fs_stat _ =
     let stats : Uv.stat = Uv.FS.statbuf fs in
     assert_equal stats.st_size (Int64.of_int 5);
     (* Hard to say what the create time of the file is but it shouldn't be 0. *)
-    assert_not_equal stats.st_birthtim.tv_sec Int64.zero
+    assert_not_equal stats.st_birthtim.tv_sec Nativeint.zero
   in
   let filename = mk_tmpfile "hello" in
   let fs = Uv.FS.stat filename ~cb:cb in

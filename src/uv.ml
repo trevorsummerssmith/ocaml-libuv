@@ -6,21 +6,19 @@ module C = Libuv_bindings.C(Libuv_generated)
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
 type timespec = {
-  tv_sec : int64;
-  tv_nsec : int64 (* TODO what type should these be? *)
+  tv_sec : nativeint;
+  tv_nsec : nativeint (* TODO what type should these be? *)
 }
 
 let from_uv_timespec uv_t =
-  let tv_sec = Signed.Long.to_int64 (getf uv_t C._tv_sec) in
-  let tv_nsec = Signed.Long.to_int64 (getf uv_t C._tv_nsec) in
+  let tv_sec = Signed.Long.to_nativeint (getf uv_t C._tv_sec) in
+  let tv_nsec = Signed.Long.to_nativeint (getf uv_t C._tv_nsec) in
   {tv_sec; tv_nsec}
 
 module Loop =
 struct
   type t = C.uv_loop
   type run_mode = RunDefault | RunOnce | RunNoWait
-
-  let ok t = Ctypes.raw_address_of_ptr t
 
   let run_mode_to_int = function
       RunDefault -> 0
@@ -399,8 +397,7 @@ struct
     let fs = ocaml_to_c fs in
     let f = C.get_uv_fs_t_result fs in
     try
-      let i = coerce PosixTypes.ssize_t int64_t f in
-      Signed.Int64.to_int64 i
+      coerce PosixTypes.ssize_t int64_t f
     with exn -> Printf.printf "Oh no!\n"; raise exn (* TODO remove this *)
 
   let path fs =

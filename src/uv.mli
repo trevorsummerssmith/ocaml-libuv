@@ -2,8 +2,8 @@ open Ctypes
 open Foreign
 
 type timespec = {
-  tv_sec : int64;
-  tv_nsec : int64 (* TODO what type should these be? *)
+  tv_sec : nativeint;
+  tv_nsec : nativeint (* TODO what type should these be? *)
 }
 
 type stat = {
@@ -34,8 +34,6 @@ sig
   type t
 
   type run_mode = RunDefault | RunOnce | RunNoWait
-
-  val ok : t -> int64
 
   val default_loop : unit -> t
 

@@ -422,11 +422,11 @@ struct
 
   let uv_fs_chown = F.foreign "uv_fs_chown"
       (uv_loop @-> ptr uv_fs @-> string @->
-       PosixTypes.uid_t @-> PosixTypes.gid_t @->
+       nativeint @-> nativeint @->
        Foreign.funptr_opt uv_fs_cb @-> returning int)
 
   let uv_fs_fchown = F.foreign "uv_fs_fchown"
       (uv_loop @-> ptr uv_fs @-> int @->
-       PosixTypes.uid_t @-> PosixTypes.gid_t @->
+       nativeint @-> nativeint @->
        Foreign.funptr_opt uv_fs_cb @-> returning int)
 end
