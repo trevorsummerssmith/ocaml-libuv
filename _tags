@@ -7,3 +7,5 @@ true: package(ctypes), package(ctypes.stubs), package(ctypes.foreign)
 <test/*.native>: use_libuv_generated_stubs, use_libuv, use_accessors
 <lib_gen>: include
 <src>: include
+<src/uv.ml>: use_uv_consts
+<lib_gen/consts_gen.byte>: link_consts_stub, custom
