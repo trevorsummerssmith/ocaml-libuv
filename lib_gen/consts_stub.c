@@ -20,31 +20,35 @@ void let (FILE *fd, const char *symb) {
     }
 }
 
-void str_v (FILE *fd, char *symb, const char *value) {
+void string_v (FILE *fd, char *symb, const char *value) {
     let (fd, symb); fprintf (fd, " = \"%s\"\n", value);
 }
 
-void int_v (FILE *fd, char *symb, int value) {
+void integer_v (FILE *fd, char *symb, int value) {
     let (fd, symb); fprintf (fd, " = %d\n", value);
 }
 
-void int_vx (FILE *fd, char *symb, int value) {
+void integer_vx (FILE *fd, char *symb, int value) {
     let (fd, symb); fprintf (fd, " = 0x%X\n", value);
 }
 
-void int32_v (FILE *fd, char *symb, int32_t value) {
+void integer32_v (FILE *fd, char *symb, int32_t value) {
     let (fd, symb); fprintf (fd, " = 0x%Xl\n", value);
 }
 
 void consts (FILE *fd) {
 
-    #define int_v(e) int_v(fd, "" # e, (int)e)
-    #define int_vx(e) int_vx(fd, "" # e, (int)e)
-    #define int32_v(e) int32_v(fd, "" # e, (int32_t)e)
-    #define str_v(e) str_v(fd, "" # e, (const char *)e)
+    #define int_v(e) integer_v(fd, "" # e, (int)e)
+    #define int_vx(e) integer_vx(fd, "" # e, (int)e)
+    #define int32_v(e) integer32_v(fd, "" # e, (int32_t)e)
+    #define str_v(e) string_v(fd, "" # e, (const char *)e)
+    #define size_of(e) integer_v(fd, "size_of_" # e, (int)(sizeof(e)))
 
     /* Error codes */
     int_v(UV_EOF);
+
+    /* Size of structs (because their sizes are platform dependent) */
+    size_of(uv_fs_t);
 
 }
 
