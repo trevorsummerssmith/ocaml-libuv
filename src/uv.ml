@@ -266,11 +266,8 @@ struct
       None -> None
     | Some cb -> Some (make_callback cb)
 
-  let size_uv_fs_t = Unsigned.Size_t.to_int (C.uv_req_size 6)
-  (* 6 is UV_FS Going to shortly get these numbers in from C *)
-
   let alloc_uv_fs () =
-    let memory = allocate_n char ~count:size_uv_fs_t in
+    let memory = allocate_n char ~count:(sizeof C.uv_fs) in
     coerce (ptr char) (ptr C.uv_fs) memory
 
   let openfile ?(loop=default_loop) ?cb ?(perm=0o644) (filename : string) flags  =

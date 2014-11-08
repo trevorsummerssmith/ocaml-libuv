@@ -237,19 +237,14 @@ struct
   (* END *)
   let () = seal uv_connect
 
+  let abstr name size = abstract ~name:name ~size:size ~alignment:4
+      (* TODO(tss) figure out alignment *)
+
   (* uv_fs *)
   type uv_fs
-  (* We're never making memory for the abstract type. Instead we're allocating
-     a char array and then coercing it to the ptr typ. So this doesn't really matter.
-     Just don't ever try and make one of these.
-
-     N.b. Ideally we could define the size here just to make this all safer...
-     however we cannot call the functions (uv_req_size/uv_handle_size) inside of
-     this functor. I think soon we'll add the sizes by just getting the constants
-     we're already doing that all over this code base, then we could at least
-     put in correct size here and it wouldn't be as brittle.
-  *)
-  let uv_fs : uv_fs abstract typ = abstract ~name:"uv_fs_t" ~size:4 ~alignment:4
+  let uv_fs : uv_fs abstract typ = abstr "uv_fs_t" Uv_consts.size_of_uv_fs_t
+  (* When we need one of these we allocate a char array of sizeof(uv_fs) then
+     coerce it to this type. *)
   let uv_fs_cb = ptr uv_fs @-> returning void
 
   (* uv_dirent *)

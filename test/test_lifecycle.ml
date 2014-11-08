@@ -12,9 +12,8 @@ let mk_tmpfile contents : string =
 
 let dataTable = Refcount.create ()
 
-let size_uv_fs_t = Unsigned.Size_t.to_int (C.uv_req_size 6)
 let alloc_uv_fs () =
-  let memory = allocate_n char ~count:size_uv_fs_t in
+  let memory = allocate_n char ~count:Uv_consts.size_of_uv_fs_t in
   coerce (ptr char) (ptr C.uv_fs) memory
 
 let test_expired_callback () =
