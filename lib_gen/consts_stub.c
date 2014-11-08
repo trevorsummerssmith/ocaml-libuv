@@ -1,4 +1,4 @@
-/* Generate a list of constant definitions.
+/* Generate a list of constant definitions from c to ocaml.
  *
  * Heavily indebted to
  * https://github.com/dbuenzli/tsdl/blob/master/support/consts_stub.c .
@@ -42,6 +42,9 @@ void consts (FILE *fd) {
     #define int_vx(e) int_vx(fd, "" # e, (int)e)
     #define int32_v(e) int32_v(fd, "" # e, (int32_t)e)
     #define str_v(e) str_v(fd, "" # e, (const char *)e)
+
+    /* Error codes */
+    int_v(UV_EOF);
 
 }
 
