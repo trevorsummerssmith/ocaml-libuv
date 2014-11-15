@@ -223,10 +223,6 @@ struct
   type t = fs Request.t
   type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
-  let refs = Refcount.create ()
-  let ref_incr f = Refcount.incr refs f
-  let ref_decr f = Refcount.decr refs f
-
   let c_to_ocaml data =
     (* Convert from the value we pass to uv_* methods to the FS.t method *)
     to_voidp data
@@ -235,7 +231,10 @@ struct
     (* From FS.t to struct *)
     from_voidp C.uv_fs data
 
-  let make_callback cb =
+  let coatCheck = Coat_check.create ()
+  (* Stores callback closures and data while in the uv event loop *)
+
+  let make_callback cb data =
     (* There's something kind of subtle here:
        we need to pass the Ocaml user's callback function (cb) to libuv, so
        we'll need to wrap the user's function in a method that converts the
@@ -245,26 +244,34 @@ struct
 
        let cb' arg = cb(make_ctype_into_ocaml_type(arg))
 
-       However we don't want that callback to get gc'd before it is called.
-       So we keep track of the callbacks (cb' mind you) in a hashtbl. We add
-       cb' to the hash right before passing it to libuv. And we remove cb'
-       from the hashtbl right after calling the user's callback, cb.
+       However we don't want that callback, nor the ocaml-allocated data
+       to get gc'd before it is called.
+       So we keep track of the callbacks (cb' mind you) and data in a coat
+       check. We add cb' to the coat check right before passing it to libuv.
+       And we remove cb' from the coat check right after calling the user's
+       callback, cb.
 
        make_callback, does all of that. Looks a little dense, not so bad.
+
+       TODO I would like to think of a way to abstract the gc-avoidance
+       part of this out so that it could be reused across all methods.
     *)
-    let rec callback cb _uv_fs =
-      let finally () = ref_decr callback in
+    let id = Coat_check.ticket coatCheck in
+    let callback cb _uv_fs =
+      let finally () = Coat_check.forget coatCheck id in
       let fs = c_to_ocaml _uv_fs in
       (* If we get an exception clear gc ref and re-raise *)
       let _ =  try cb fs with exn -> finally (); raise exn in
       finally ()
     in
-    ref_incr callback;
+    let storage = (callback, data) in
+    Coat_check.store coatCheck id storage;
     callback cb
 
-  let make_callback_opt = function
+  let make_callback_opt opt data =
+    match opt with
       None -> None
-    | Some cb -> Some (make_callback cb)
+    | Some cb -> Some (make_callback cb data)
 
   let alloc_uv_fs () =
     let memory = allocate_n char ~count:(sizeof C.uv_fs) in
@@ -272,19 +279,19 @@ struct
 
   let openfile ?(loop=default_loop) ?cb ?(perm=0o644) (filename : string) flags  =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_open loop data filename flags perm cb' in
     c_to_ocaml data
 
   let close ?(loop=default_loop) ?cb file =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_close loop data file cb' in
     c_to_ocaml data
 
   let read ?(loop=default_loop) ?cb ?(offset=(-1)) file = (* TODO what should offset be? *)
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     (* Allocate read buffer *)
     let buf_len = 1024 in
     let buf = Bigarray.(Array1.create char c_layout buf_len) in
@@ -299,7 +306,7 @@ struct
 
   let write ?(loop=default_loop) ?cb ?(offset=(-1)) file buf = (* TODO offset, bufs *)
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     (* Allocate buf_t structure *)
     let buf_ptr = bigarray_start array1 buf in
     let buf_data = make C.uv_buf in
@@ -312,81 +319,81 @@ struct
 
   let stat ?(loop=default_loop) ?cb (filename : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
     c_to_ocaml data
 
   let fstat ?(loop=default_loop) ?cb (fd : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_fstat loop data fd cb' in
     c_to_ocaml data
 
   let lstat ?(loop=default_loop) ?cb (filename : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_lstat loop data filename cb' in
     c_to_ocaml data
 
   let unlink ?(loop=default_loop) ?cb (filename : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_unlink loop data filename cb' in
     c_to_ocaml data
 
   let mkdir ?(loop=default_loop) ?cb ?(mode=0o775) (filename : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_mkdir loop data filename mode cb' in
     c_to_ocaml data
 
   let mkdtemp ?(loop=default_loop) ?cb (template : string) =
     assert ((Str.last_chars template 6) = "XXXXXX");
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_mkdtemp loop data template cb' in
     c_to_ocaml data
 
   let rmdir ?(loop=default_loop) ?cb (path : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_rmdir loop data path cb' in
     c_to_ocaml data
 
   let rename ?(loop=default_loop) ?cb (path : string) (new_path : string) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_rename loop data path new_path cb' in
     c_to_ocaml data
 
   let fsync ?(loop=default_loop) ?cb (file : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_fsync loop data file cb' in
     c_to_ocaml data
 
   let fdatasync ?(loop=default_loop) ?cb (file : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_fdatasync loop data file cb' in
     c_to_ocaml data
 
   let ftruncate ?(loop=default_loop) ?cb (file : int) (offset : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
     c_to_ocaml data
 
   let sendfile ?(loop=default_loop) ?cb ?(offset=0) (in_fd : int) (out_fd : int) (count : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = (C.uv_fs_sendfile loop data in_fd out_fd (Int64.of_int offset)
                (Unsigned.Size_t.of_int count) cb') in
     c_to_ocaml data
 
   let chmod ?(loop=default_loop) ?cb (path : string) (mode : int) =
     let data = alloc_uv_fs () in
-    let cb' = make_callback_opt cb in
+    let cb' = make_callback_opt cb data in
     let _ = C.uv_fs_chmod loop data path mode cb' in
     c_to_ocaml data
 
@@ -439,6 +446,7 @@ struct
      st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
      st_birthtim}
 end
+
 
 (* TODO Figure what what we want to do with sockaddr. Use Unix stdlib? *)
 type mysock = C.uv_sockaddr structure ptr
