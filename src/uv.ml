@@ -1,6 +1,10 @@
 open Ctypes
 open Foreign
 
+type error = Uv_consts.error
+
+let error_to_string = Uv_consts.error_to_string
+
 module C = Libuv_bindings.C(Libuv_generated)
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -399,13 +403,22 @@ struct
 
   (* Accessors *)
 
+  type result = Ok of int | Error of error
+  (* TODO Double check what type the Ok should be. *)
+
   let result fs =
     let fs = ocaml_to_c fs in
-    let f = C.get_uv_fs_t_result fs in
-    try
-      let i = coerce PosixTypes.ssize_t int64_t f in
-      Signed.Int64.to_int64 i
-    with exn -> Printf.printf "Oh no!\n"; raise exn (* TODO remove this *)
+    (* Get the result which is ssize_t, convert it to an ocaml int
+       TODO -- ssize_t doesn't convert to a long or nativeint.
+       Figure out what this should be.
+    *)
+    let result = C.get_uv_fs_t_result fs in
+    let result = coerce PosixTypes.ssize_t int64_t result in
+    let result = Int64.to_int result in
+    if result >= 0 then
+      Ok result
+    else
+      Error (Uv_consts.int_to_error result)
 
   let path fs =
     let fs = ocaml_to_c fs in

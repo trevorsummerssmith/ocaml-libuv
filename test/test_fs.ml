@@ -3,6 +3,10 @@ open Ctypes
 
 let assert_not_equal = assert_equal ~cmp:( <> )
 
+let ok_exn = function
+    Uv.FS.Ok i -> i
+  | _ -> failwith "error"
+
 let mk_tmpfile contents : string =
   let (tmpfile_name, chan) = Filename.open_temp_file "foo" "txt" in
   output_string chan contents;
@@ -42,7 +46,7 @@ let test_fs_fstat _ =
   let filename = mk_tmpfile "boo" in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := (ok_exn (Uv.FS.result request)) in
     let _ = Uv.FS.fstat !fd ~cb:fstat_callback in ()
   and fstat_callback request =
     let stats = Uv.FS.statbuf request in
@@ -57,7 +61,7 @@ let test_fs_fstat _ =
 let test_blocking_fs_fstat _ =
   let filename = mk_tmpfile "boo" in
   let open_request = Uv.FS.openfile filename 0 in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let fstat_request = Uv.FS.fstat fd in
   let stats = Uv.FS.statbuf fstat_request in
   assert_equal stats.st_size (Int64.of_int 3);
@@ -97,7 +101,7 @@ let test_fs_read _ =
   let test_string = "test" in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := ok_exn (Uv.FS.result request) in
     let _ = Uv.FS.read !fd ~cb:read_callback in ()
   and read_callback request =
     let buf = Uv.FS.buf request in
@@ -114,7 +118,7 @@ let test_blocking_fs_read _ =
   let filename = mk_tmpfile test_string in
   let open_request = Uv.FS.openfile filename 0 in
   let _ = Uv.Loop.run RunDefault in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let read_request = Uv.FS.read fd in
   let buf = Uv.FS.buf read_request in
   assert_equal (Util.of_bigarray buf) "test";
@@ -129,7 +133,7 @@ let test_fs_write _ =
   let filename = mk_tmpfile "" in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := ok_exn (Uv.FS.result request) in
     let buf = (Util.to_bigarray "test") in
     let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
   and write_callback _ =
@@ -148,7 +152,7 @@ let test_blocking_fs_write _ =
   let filename = mk_tmpfile "" in
   let flags = (o_creat lor o_wronly lor o_trunc) in
   let open_request = Uv.FS.openfile filename flags in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let _ = Uv.FS.write fd (Util.to_bigarray "test") in
   let _ = Uv.FS.close fd in
   let _ = Uv.Loop.run RunDefault in
@@ -268,7 +272,7 @@ let test_fs_fsync _ =
   let fs_before = Unix.stat filename in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := ok_exn (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfsync") in
     let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
   and write_callback _ =
@@ -287,7 +291,7 @@ let test_blocking_fs_fsync _ =
   let fs_before = Unix.stat filename in
   let flags = (o_creat lor o_wronly lor o_trunc) in
   let open_request = Uv.FS.openfile filename flags in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let buf = (Util.to_bigarray "testfsync") in
   let _ = Uv.FS.write fd buf in
   let _ = Uv.FS.fsync fd in
@@ -302,7 +306,7 @@ let test_fs_fdatasync _ =
   let fs_before = Unix.stat filename in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := ok_exn (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfdatasync") in
     let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
   and write_callback _ =
@@ -321,7 +325,7 @@ let test_blocking_fs_fdatasync _ =
   let fs_before = Unix.stat filename in
   let flags = (o_creat lor o_wronly lor o_trunc) in
   let open_request = Uv.FS.openfile filename flags in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let buf = (Util.to_bigarray "testfdatasync") in
   let _ = Uv.FS.write fd buf in
   let _ = Uv.FS.fdatasync fd in
@@ -334,7 +338,7 @@ let test_fs_ftruncate _ =
   let filename = mk_tmpfile "test" in
   let fd = ref 0 in
   let rec open_callback request =
-    fd := Int64.to_int (Uv.FS.result request);
+    let () = fd := ok_exn (Uv.FS.result request) in
     let _ = Uv.FS.ftruncate !fd 2 ~cb:ftruncate_callback in ()
   and ftruncate_callback _ =
     let _ = Uv.FS.close !fd ~cb:close_callback in ()
@@ -350,7 +354,7 @@ let test_fs_ftruncate _ =
 let test_blocking_fs_ftruncate _ =
   let filename = mk_tmpfile "test" in
   let open_request = Uv.FS.openfile filename o_wronly in
-  let fd = Int64.to_int (Uv.FS.result open_request) in
+  let fd = ok_exn (Uv.FS.result open_request) in
   let _ = Uv.FS.ftruncate fd 2 in
   let _ = Uv.FS.close fd in
   let input_channel = open_in filename in
@@ -365,12 +369,13 @@ let test_fs_sendfile _ =
   let source_fd = ref 0 in
   let dest_fd = ref 0 in
   let rec open_source_callback request =
-    source_fd := Int64.to_int (Uv.FS.result request);
+    let fd = ok_exn (Uv.FS.result request) in
+    source_fd := fd;
     let flags = o_creat lor o_wronly lor o_trunc in
     let _ = Uv.FS.openfile target_path flags ~cb:open_dest_callback in ()
   and open_dest_callback request =
     Printf.printf ""; (* TODO: this makes this test pass for some reason *)
-    dest_fd := Int64.to_int (Uv.FS.result request);
+    dest_fd := ok_exn (Uv.FS.result request);
     let _ = Uv.FS.sendfile !dest_fd !source_fd 4 ~cb:sendfile_callback in ()
   and sendfile_callback _ =
     let _ = Uv.FS.close !source_fd ~cb:close_source_callback in ()
@@ -392,10 +397,10 @@ let test_blocking_fs_sendfile _ =
   let tempdir = mkdtemp () in
   let target_path = Filename.concat tempdir "target" in
   let open_source_request = Uv.FS.openfile filename 0 in
-  let source_fd = Int64.to_int (Uv.FS.result open_source_request) in
+  let source_fd = ok_exn (Uv.FS.result open_source_request) in
   let flags = o_creat lor o_wronly lor o_trunc in
   let open_dest_request = Uv.FS.openfile target_path flags in
-  let dest_fd = Int64.to_int (Uv.FS.result open_dest_request) in
+  let dest_fd = ok_exn (Uv.FS.result open_dest_request) in
   let _ = Uv.FS.sendfile dest_fd source_fd 4 in
   let _ = Uv.FS.close source_fd in
   let _ = Uv.FS.close dest_fd in
