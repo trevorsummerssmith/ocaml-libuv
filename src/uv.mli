@@ -1,6 +1,12 @@
 open Ctypes
 open Foreign
 
+type error = Uv_consts.error
+(** Error type returned by functions or passed to callbacks *)
+
+val error_to_string : error -> string
+(** Error to a human readable message *)
+
 type timespec = {
   tv_sec : int64;
   tv_nsec : int64 (* TODO what type should these be? *)
@@ -113,8 +119,11 @@ sig
   (* TODO: scandir *)
 
   (* Accessor functions *)
+
+  type result = Ok of int | Error of error
+
   val buf : t -> iobuf
-  val result : t -> int64
+  val result : t -> result
   val path : t -> string
   val statbuf : t -> stat
   (* TODO statbuf -- should we just let everyone access it? Or try to change the 

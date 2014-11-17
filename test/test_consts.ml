@@ -3,11 +3,14 @@ open OUnit
 (* This is here to ensure that the plumbing works in the whole
    compile consts from c to ocaml. *)
 
-let test_a_const _ =
-  (* Obviously this is brittle. But we just need something to ensure it is
-     working. If it breaks, then we need to update the codebase. *)
-  assert_equal Uv_consts.uv_eof (-4095)
+let test_error_to_int _ =
+  assert_equal (Uv_consts.error_to_int Uv_consts.UV_EOF) (-4095)
+
+let test_int_to_error _ =
+  assert_equal (Uv_consts.int_to_error (-4095)) Uv_consts.UV_EOF
 
 let suite =
   "consts suite">:::
-  ["const">::test_a_const]
+  ["error -> int">::test_error_to_int;
+  "int -> error">::test_int_to_error;
+  ]
