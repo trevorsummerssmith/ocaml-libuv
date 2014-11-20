@@ -3,13 +3,13 @@
 all: cat tcp
 
 tcp:
-	corebuild -Is src examples/tcp_echo_server.native -pkg ctypes.stubs -pkg ctypes.foreign -lflags -cclib,-luv -tag debug -cflag -g -cflag
+	ocamlbuild -Is src examples/tcp_echo_server.native -lflags -cclib,-luv -tag debug -cflag -g
 
 cat:
-	corebuild -Is src examples/cat.native -pkg ctypes.stubs -pkg ctypes.foreign -lflags -cclib,-luv -tag debug -cflag -g -cflag
+	ocamlbuild -Is src examples/cat.native -lflags -cclib,-luv -tag debug -cflag -g
 
 tests:
-	corebuild -Is src test/test_runner.native -pkg oUnit -pkg ctypes.foreign -lflags -cclib,-luv && ./test_runner.native
+	ocamlbuild -Is src test/test_runner.native -lflags -cclib,-luv && ./test_runner.native
 
 clean:
 	ocamlbuild -clean

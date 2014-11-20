@@ -2,10 +2,12 @@ true: package(ctypes), package(ctypes.stubs), package(ctypes.foreign)
 <src/libuv_generated_stubs.*>: use_ctypes_c_headers
 <src/libuv_accessors.c>: use_accessor_headers
 <examples/*.byte>: use_libuv_generated_stubs, custom, use_libuv, use_accessors
-<examples/*.native>: use_libuv_generated_stubs, use_libuv, use_accessors
-<test/*.byte>: use_libuv_generated_stubs, custom, use_libuv, use_accessors
-<test/*.native>: use_libuv_generated_stubs, use_libuv, use_accessors
+<examples/*.native>: use_libuv_generated_stubs, use_libuv, use_accessors, thread
+<test/*.byte>: use_libuv_generated_stubs, custom, use_libuv, use_accessors, package(oUnit)
+<test/*.native>: use_libuv_generated_stubs, use_libuv, use_accessors, thread, package(oUnit)
+<test/*.ml>: package(oUnit)
 <lib_gen>: include
 <src>: include
 <src/uv.ml>: use_uv_consts
 <lib_gen/consts_gen.byte>: link_consts_stub, custom
+<src/coat_check.ml>: thread
