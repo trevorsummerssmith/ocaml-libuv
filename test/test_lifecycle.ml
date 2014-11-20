@@ -32,7 +32,7 @@ let test_expired_callback () =
     let tckt = Coat_check.ticket coatCheck in
     let () = Coat_check.store coatCheck tckt (Obj.repr data) in
     let () = Gc.compact () in
-    let _ = C.uv_fs_stat (C.uv_default_loop ()) data filename (Some cb) in
+    let _ = C.uv_fs_stat (C.uv_default_loop ()) data filename cb in
     let () = Gc.compact () in ()
   end in
   assert_raises CallToExpiredClosure (fun () -> Uv.Loop.run RunDefault)
@@ -50,7 +50,7 @@ let test_store_callback_and_data () =
     let tckt = Coat_check.ticket coatCheck in
     let () = Coat_check.store coatCheck tckt safe in
     let () = Gc.compact () in
-    let ret = C.uv_fs_stat (C.uv_default_loop ()) data filename (Some cb) in
+    let ret = C.uv_fs_stat (C.uv_default_loop ()) data filename cb in
     let () = Gc.compact () in () end
   in
   let _ = Uv.Loop.run RunDefault in
@@ -74,7 +74,7 @@ let test_store_callback_and_data_then_expired () =
     let tckt = Coat_check.ticket coatCheck in
     let () = Coat_check.store coatCheck tckt (Obj.repr data) in
     let () = Gc.compact () in
-    let ret = C.uv_fs_stat (C.uv_default_loop ()) data filename (Some cb) in
+    let ret = C.uv_fs_stat (C.uv_default_loop ()) data filename cb in
     let () = Gc.compact () in () end
   in
   assert_raises CallToExpiredClosure (fun () -> Uv.Loop.run RunDefault)

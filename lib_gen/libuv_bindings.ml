@@ -316,112 +316,112 @@ struct
 
   let uv_fs_close = F.foreign "uv_fs_close"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_open = F.foreign "uv_fs_open"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       int @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_read = F.foreign "uv_fs_read"
       (uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf @->
-       int @-> long @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> long @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_unlink = F.foreign "uv_fs_unlink"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_write = F.foreign "uv_fs_write"
       (uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf @->
-       int @-> long @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> long @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_mkdir = F.foreign "uv_fs_mkdir"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_mkdtemp = F.foreign "uv_fs_mkdtemp"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_rmdir = F.foreign "uv_fs_rmdir"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   (* Scandir is not present until 1.0.0, which I don't have installed.
    * let uv_fs_scandir = F.foreign "uv_fs_scandir"
    *     (uv_loop @-> ptr uv_fs @-> string @-> int @->
-   *      Foreign.funptr_opt uv_fs_cb @-> returning int)
+   *      Foreign.funptr uv_fs_cb @-> returning int)
    *
    * let uv_fs_scandir_next = F.foreign "uv_fs_scandir_next"
    *     (ptr uv_fs @-> ptr uv_dirent @-> returning int) *)
 
   let uv_fs_stat = F.foreign "uv_fs_stat"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fstat = F.foreign "uv_fs_fstat"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_lstat = F.foreign "uv_fs_lstat"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_rename = F.foreign "uv_fs_rename"
       (uv_loop @-> ptr uv_fs @-> string @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fsync = F.foreign "uv_fs_fsync"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fdatasync = F.foreign "uv_fs_fdatasync"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_ftruncate = F.foreign "uv_fs_ftruncate"
       (uv_loop @->ptr uv_fs @-> int @-> int64_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_sendfile = F.foreign "uv_fs_sendfile"
       (uv_loop @-> ptr uv_fs @-> int @-> int @->
        int64_t @-> size_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_chmod = F.foreign "uv_fs_chmod"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fchmod = F.foreign "uv_fs_fchmod"
       (uv_loop @-> ptr uv_fs @-> int @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_utime = F.foreign "uv_fs_utime"
       (uv_loop @-> ptr uv_fs @-> string @-> double @-> double @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_futime = F.foreign "uv_fs_futime"
       (uv_loop @-> ptr uv_fs @-> int @-> double @-> double @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_link = F.foreign "uv_fs_link"
       (uv_loop @-> ptr uv_fs @-> string @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_symlink = F.foreign "uv_fs_symlink"
       (uv_loop @-> ptr uv_fs @-> string @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_readlink = F.foreign "uv_fs_readlink"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_chown = F.foreign "uv_fs_chown"
       (uv_loop @-> ptr uv_fs @-> string @->
        PosixTypes.uid_t @-> PosixTypes.gid_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fchown = F.foreign "uv_fs_fchown"
       (uv_loop @-> ptr uv_fs @-> int @->
        PosixTypes.uid_t @-> PosixTypes.gid_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 end
