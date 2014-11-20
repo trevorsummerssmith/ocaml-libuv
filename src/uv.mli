@@ -98,24 +98,24 @@ sig
   type fs
   type t = fs Request.t
 
-  val openfile : ?loop:Loop.t -> ?cb:(t -> unit) -> ?perm:int -> string -> int -> t (* TODO unix flags *)
-  val close : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
-  val read : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> t
-  val write : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> iobuf -> t
-  val stat : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
-  val fstat : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
-  val lstat : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
-  val unlink : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
-  val mkdir : ?loop:Loop.t -> ?cb:(t -> unit) -> ?mode:int -> string -> t
-  val mkdtemp : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
-  val rmdir : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> t
-  val rename : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> string -> t
-  val fsync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
-  val fdatasync : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> t
-  val ftruncate : ?loop:Loop.t -> ?cb:(t -> unit) -> int -> int -> t
-  val sendfile : ?loop:Loop.t -> ?cb:(t -> unit) -> ?offset:int -> int -> int ->
+  val openfile : ?loop:Loop.t -> ?perm:int -> cb:(t -> unit) -> string -> int -> t (* TODO unix flags *)
+  val close : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
+  val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> t
+  val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> iobuf -> t
+  val stat : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
+  val fstat : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
+  val lstat : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
+  val unlink : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
+  val mkdir : ?loop:Loop.t -> ?mode:int -> cb:(t -> unit) -> string -> t
+  val mkdtemp : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
+  val rmdir : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
+  val rename : ?loop:Loop.t -> cb:(t -> unit) -> string -> string -> t
+  val fsync : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
+  val fdatasync : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
+  val ftruncate : ?loop:Loop.t -> cb:(t -> unit) -> int -> int -> t
+  val sendfile : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> int ->
     int -> t
-  val chmod : ?loop:Loop.t -> ?cb:(t -> unit) -> string -> int -> t
+  val chmod : ?loop:Loop.t -> cb:(t -> unit) -> string -> int -> t
   (* TODO: scandir *)
 
   (* Accessor functions *)
