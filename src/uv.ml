@@ -5,6 +5,22 @@ type error = Uv_consts.error
 
 let error_to_string = Uv_consts.error_to_string
 
+type 'a result = Ok of 'a | Error of error
+
+type status = unit result
+
+let ok : status = Ok ()
+(* Convenience *)
+
+let ok_exn = function
+    Ok a -> a
+  | Error e -> failwith (error_to_string e)
+
+let int_to_status = function
+    i when i = 0 -> ok
+  | i when i < 0 -> Error (Uv_consts.int_to_error i)
+  | _ -> failwith "This should never happen. Status code returned > 0."
+
 module C = Libuv_bindings.C(Libuv_generated)
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -24,8 +40,6 @@ struct
   type t = C.uv_loop
   type run_mode = RunDefault | RunOnce | RunNoWait
 
-  let ok t = Ctypes.raw_address_of_ptr t
-
   let run_mode_to_int = function
       RunDefault -> 0
     | RunOnce -> 1
@@ -33,7 +47,10 @@ struct
 
   let default_loop = C.uv_default_loop
 
-  let run ?(loop=default_loop()) run_mode = C.uv_run loop (run_mode_to_int run_mode)
+  let run ?(loop=default_loop()) run_mode =
+    let ret = C.uv_run loop (run_mode_to_int run_mode) in
+    int_to_status ret
+
 end
 
 let default_loop = Loop.default_loop ()
@@ -284,13 +301,13 @@ struct
 
   let openfile ?(loop=default_loop) ?(perm=0o644) ~cb (filename : string) flags  =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_open loop data filename flags perm cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_open loop data filename flags perm cb' in
+    int_to_status ret
 
   let close ?(loop=default_loop) ~cb file =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_close loop data file cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_close loop data file cb' in
+    int_to_status ret
 
   let read ?(loop=default_loop) ?(offset=(-1)) ~cb file = (* TODO what should offset be? *)
     let (cb', data) = make_cb_and_data cb in
@@ -303,8 +320,8 @@ struct
     let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
     let arr = CArray.make C.uv_buf 1 in
     let _ = CArray.set arr 0 buf_data in  (* TODO may be able to make this simpler *)
-    let _ = C.uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
+    int_to_status ret
 
   let write ?(loop=default_loop) ?(offset=(-1)) ~cb file buf = (* TODO offset, bufs *)
     let (cb', data) = make_cb_and_data cb in
@@ -315,82 +332,81 @@ struct
     let buf_len = Bigarray.Array1.dim buf in
     let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
     (* TODO just passing a single guy here... *)
-    let _ = C.uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
+    int_to_status ret
 
   let stat ?(loop=default_loop) ~cb (filename : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
-    c_to_ocaml data
+    let ret = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
+    int_to_status ret
 
   let fstat ?(loop=default_loop) ~cb (fd : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_fstat loop data fd cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_fstat loop data fd cb' in
+    int_to_status ret
 
   let lstat ?(loop=default_loop) ~cb (filename : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_lstat loop data filename cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_lstat loop data filename cb' in
+    int_to_status ret
 
   let unlink ?(loop=default_loop) ~cb (filename : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_unlink loop data filename cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_unlink loop data filename cb' in
+    int_to_status ret
 
   let mkdir ?(loop=default_loop) ?(mode=0o775) ~cb (filename : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_mkdir loop data filename mode cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_mkdir loop data filename mode cb' in
+    int_to_status ret
 
   let mkdtemp ?(loop=default_loop) ~cb (template : string) =
     assert ((Str.last_chars template 6) = "XXXXXX");
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_mkdtemp loop data template cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_mkdtemp loop data template cb' in
+    int_to_status ret
 
   let rmdir ?(loop=default_loop) ~cb (path : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_rmdir loop data path cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_rmdir loop data path cb' in
+    int_to_status ret
 
   let rename ?(loop=default_loop) ~cb (path : string) (new_path : string) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_rename loop data path new_path cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_rename loop data path new_path cb' in
+    int_to_status ret
 
   let fsync ?(loop=default_loop) ~cb (file : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_fsync loop data file cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_fsync loop data file cb' in
+    int_to_status ret
 
   let fdatasync ?(loop=default_loop) ~cb (file : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_fdatasync loop data file cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_fdatasync loop data file cb' in
+    int_to_status ret
 
   let ftruncate ?(loop=default_loop) ~cb (file : int) (offset : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_ftruncate loop data file (Int64.of_int offset) cb' in
+    int_to_status ret
 
   let sendfile ?(loop=default_loop) ?(offset=0) ~cb (in_fd : int) (out_fd : int) (count : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = (C.uv_fs_sendfile loop data in_fd out_fd (Int64.of_int offset)
+    let ret = (C.uv_fs_sendfile loop data in_fd out_fd (Int64.of_int offset)
                (Unsigned.Size_t.of_int count) cb') in
-    c_to_ocaml data
+    int_to_status ret
 
   let chmod ?(loop=default_loop) ~cb (path : string) (mode : int) =
     let (cb', data) = make_cb_and_data cb in
-    let _ = C.uv_fs_chmod loop data path mode cb' in
-    c_to_ocaml data
+    let ret = C.uv_fs_chmod loop data path mode cb' in
+    int_to_status ret
 
   (* Accessors *)
 
-  type result = Ok of int | Error of error
-  (* TODO Double check what type the Ok should be. *)
-
   let result fs =
+    (* TODO double check what we want the return type of this to be.
+       Is int correct? and will that function on 32 bit systems? *)
     let fs = ocaml_to_c fs in
     (* Get the result which is ssize_t, convert it to an ocaml int
        TODO -- ssize_t doesn't convert to a long or nativeint.

@@ -1,11 +1,12 @@
 open OUnit
 open Ctypes
+open Uv
 
 let assert_not_equal = assert_equal ~cmp:( <> )
 
-let ok_exn = function
-    Uv.FS.Ok i -> i
-  | _ -> failwith "error"
+let ( !! ) r = ok_exn r
+
+let run () = !! (Loop.run Loop.RunDefault)
 
 let mk_tmpfile contents : string =
   let (tmpfile_name, chan) = Filename.open_temp_file "foo" "txt" in
@@ -20,33 +21,33 @@ let mkdtemp () : string =
   tmpdir
 
 let test_fs_stat _ =
+  let filename = mk_tmpfile "hello" in
   let cb fs =
     let stats : Uv.stat = Uv.FS.statbuf fs in
     assert_equal stats.st_size (Int64.of_int 5);
     (* Hard to say what the create time of the file is but it shouldn't be 0. *)
-    assert_not_equal stats.st_birthtim.tv_sec Int64.zero
+    assert_not_equal stats.st_birthtim.tv_sec Int64.zero;
+    assert_equal (Uv.FS.path fs) filename;
+    Unix.unlink filename
   in
-  let filename = mk_tmpfile "hello" in
-  let fs = Uv.FS.stat filename ~cb:cb in
-  let _ = Uv.Loop.run RunDefault in
-  assert_equal (Uv.FS.path fs) filename;
-  Unix.unlink filename
+  !! (Uv.FS.stat filename ~cb:cb);
+  run ()
 
 let test_fs_fstat _ =
   let filename = mk_tmpfile "boo" in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := (ok_exn (Uv.FS.result request)) in
-    let _ = Uv.FS.fstat !fd ~cb:fstat_callback in ()
+    fd := !!(Uv.FS.result request);
+    !!(Uv.FS.fstat !fd ~cb:fstat_callback)
   and fstat_callback request =
     let stats = Uv.FS.statbuf request in
     assert_equal stats.st_size (Int64.of_int 3);
-    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+    !!(Uv.FS.close !fd ~cb:close_callback)
   and close_callback _ =
     Unix.unlink filename
   in
-  let _ = Uv.FS.openfile filename 0 ~cb:open_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename 0 ~cb:open_callback);
+  run ()
 
 let test_fs_lstat _ =
   let filename = mk_tmpfile "boo" in
@@ -61,24 +62,23 @@ let test_fs_lstat _ =
     Unix.rmdir tmpdir;
     Unix.unlink filename
   in
-  let _ = Uv.FS.lstat linkpath ~cb:lstat_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.lstat linkpath ~cb:lstat_callback);
+  run ()
 
 let test_fs_read _ =
   let test_string = "test" in
+  let filename = mk_tmpfile test_string in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := ok_exn (Uv.FS.result request) in
-    let _ = Uv.FS.read !fd ~cb:read_callback in ()
+    fd := !! (Uv.FS.result request);
+    !!(Uv.FS.read !fd ~cb:read_callback)
   and read_callback request =
     let buf = Uv.FS.buf request in
-    let _ = Uv.FS.close !fd in
+    !!(Uv.FS.close !fd ~cb:(fun _ -> Unix.unlink filename));
     assert_equal (Util.of_bigarray buf) "test"
   in
-  let filename = mk_tmpfile test_string in
-  let _ = Uv.FS.openfile filename 0 ~cb:open_callback in
-  let _ = Uv.Loop.run RunDefault in
-  Unix.unlink filename
+  !!(Uv.FS.openfile filename 0 ~cb:open_callback);
+  run ()
 
 (* TODO: put these somewhere more appropriate *)
 let o_creat = 0o100
@@ -89,11 +89,11 @@ let test_fs_write _ =
   let filename = mk_tmpfile "" in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := ok_exn (Uv.FS.result request) in
+    let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "test") in
-    let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
+    !!(Uv.FS.write !fd buf ~cb:write_callback)
   and write_callback _ =
-    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+    !!(Uv.FS.close !fd ~cb:close_callback)
   and close_callback _ =
     let input_channel = open_in filename in
     let data = input_line input_channel in
@@ -101,16 +101,16 @@ let test_fs_write _ =
     Unix.unlink filename
   in
   let flags = (o_creat lor o_wronly lor o_trunc) in
-  let _ = Uv.FS.openfile filename flags ~cb:open_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename flags ~cb:open_callback);
+  run ()
 
 let test_fs_unlink _ =
   let filename = mk_tmpfile "" in
   let unlink_callback _ =
     assert_bool "File exists after unlink" (not (Sys.file_exists filename));
   in
-  let _ = Uv.FS.unlink filename ~cb:unlink_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.unlink filename ~cb:unlink_callback);
+  run ()
 
 let test_fs_mkdir _ =
   let temp_dir = mkdtemp () in
@@ -121,8 +121,8 @@ let test_fs_mkdir _ =
     Unix.rmdir target_dir_path;
     Unix.rmdir temp_dir
   in
-  let _ = Uv.FS.mkdir target_dir_path ~cb:mkdir_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.mkdir target_dir_path ~cb:mkdir_callback);
+  run ()
 
 let test_fs_mkdtemp _ =
   let temp_dir = mkdtemp () in
@@ -137,16 +137,16 @@ let test_fs_mkdtemp _ =
     Unix.rmdir dir_path;
     Unix.rmdir temp_dir
   in
-  let _ = Uv.FS.mkdtemp template ~cb:mkdtemp_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.mkdtemp template ~cb:mkdtemp_callback);
+  run ()
 
 let test_fs_rmdir _ =
   let temp_dir = mkdtemp () in
   let rmdir_callback _ =
     assert_bool "dir gone" (not (Sys.file_exists temp_dir))
   in
-  let _ = Uv.FS.rmdir temp_dir ~cb:rmdir_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.rmdir temp_dir ~cb:rmdir_callback);
+  run ()
 
 let test_fs_rename _ =
   let temp_dir = mkdtemp () in
@@ -161,8 +161,8 @@ let test_fs_rename _ =
     Unix.unlink destpath;
     Unix.rmdir temp_dir
   in
-  let _ = Uv.FS.rename sourcepath destpath ~cb:rename_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.rename sourcepath destpath ~cb:rename_callback);
+  run ()
 
 (* I worry that these tests for fsync/fdatasync don't work on all systems, since
  * frequently write updates metadata *)
@@ -171,19 +171,19 @@ let test_fs_fsync _ =
   let fs_before = Unix.stat filename in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := ok_exn (Uv.FS.result request) in
+    let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfsync") in
-    let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
+    !! (Uv.FS.write !fd buf ~cb:write_callback)
   and write_callback _ =
-    let _ = Uv.FS.fsync !fd ~cb:fsync_callback in ()
+    !! (Uv.FS.fsync !fd ~cb:fsync_callback)
   and fsync_callback _ =
     let fs_after = Unix.stat filename in
     assert_bool "size updated" (not (fs_before.st_size = fs_after.st_size));
-    let _ = Uv.FS.close !fd in ()
+    !! (Uv.FS.close !fd ~cb:(fun _ -> Unix.unlink filename))
   in
   let flags = (o_creat lor o_wronly lor o_trunc) in
-  let _ = Uv.FS.openfile filename ~cb:open_callback flags in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename ~cb:open_callback flags);
+  run ()
 
 (* TODO: test fdatasync-specific properties *)
 let test_fs_fdatasync _ =
@@ -191,36 +191,36 @@ let test_fs_fdatasync _ =
   let fs_before = Unix.stat filename in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := ok_exn (Uv.FS.result request) in
+    let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfdatasync") in
-    let _ = Uv.FS.write !fd buf ~cb:write_callback in ()
+    !!(Uv.FS.write !fd buf ~cb:write_callback)
   and write_callback _ =
-    let _ = Uv.FS.fdatasync !fd ~cb:fdatasync_callback in ()
+    !!(Uv.FS.fdatasync !fd ~cb:fdatasync_callback)
   and fdatasync_callback _ =
     let fs_after = Unix.stat filename in
     assert_bool "size updated" (not (fs_before.st_size = fs_after.st_size));
-    let _ = Uv.FS.close !fd in ()
+    !!(Uv.FS.close !fd ~cb:(fun _ -> Unix.unlink filename))
   in
   let flags = (o_creat lor o_wronly lor o_trunc) in
-  let _ = Uv.FS.openfile filename ~cb:open_callback flags in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename ~cb:open_callback flags);
+  run ()
 
 let test_fs_ftruncate _ =
   let filename = mk_tmpfile "test" in
   let fd = ref 0 in
   let rec open_callback request =
-    let () = fd := ok_exn (Uv.FS.result request) in
-    let _ = Uv.FS.ftruncate !fd 2 ~cb:ftruncate_callback in ()
+    let () = fd := !! (Uv.FS.result request) in
+    !!(Uv.FS.ftruncate !fd 2 ~cb:ftruncate_callback)
   and ftruncate_callback _ =
-    let _ = Uv.FS.close !fd ~cb:close_callback in ()
+    !!(Uv.FS.close !fd ~cb:close_callback)
   and close_callback _ =
     let input_channel = open_in filename in
     let data = input_line input_channel in
     assert_equal "te" data;
     Unix.unlink filename
   in
-  let _ = Uv.FS.openfile filename o_wronly ~cb:open_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename o_wronly ~cb:open_callback);
+  run ()
 
 let test_fs_sendfile _ =
   let filename = mk_tmpfile "test" in
@@ -229,18 +229,18 @@ let test_fs_sendfile _ =
   let source_fd = ref 0 in
   let dest_fd = ref 0 in
   let rec open_source_callback request =
-    let fd = ok_exn (Uv.FS.result request) in
+    let fd = !! (Uv.FS.result request) in
     source_fd := fd;
     let flags = o_creat lor o_wronly lor o_trunc in
-    let _ = Uv.FS.openfile target_path flags ~cb:open_dest_callback in ()
+    !!(Uv.FS.openfile target_path flags ~cb:open_dest_callback)
   and open_dest_callback request =
     Printf.printf ""; (* TODO: this makes this test pass for some reason *)
-    dest_fd := ok_exn (Uv.FS.result request);
-    let _ = Uv.FS.sendfile !dest_fd !source_fd 4 ~cb:sendfile_callback in ()
+    dest_fd := !! (Uv.FS.result request);
+    !!(Uv.FS.sendfile !dest_fd !source_fd 4 ~cb:sendfile_callback)
   and sendfile_callback _ =
-    let _ = Uv.FS.close !source_fd ~cb:close_source_callback in ()
+    !!(Uv.FS.close !source_fd ~cb:close_source_callback)
   and close_source_callback _ =
-    let _ = Uv.FS.close !dest_fd ~cb:close_dest_callback in ()
+    !!(Uv.FS.close !dest_fd ~cb:close_dest_callback)
   and close_dest_callback _ =
     let input_channel = open_in target_path in
     let data = input_line input_channel in
@@ -249,8 +249,8 @@ let test_fs_sendfile _ =
     Unix.unlink target_path;
     Unix.rmdir tempdir
   in
-  let _ = Uv.FS.openfile filename 0 ~cb:open_source_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.openfile filename 0 ~cb:open_source_callback);
+  run ()
 
 let test_fs_chmod _ =
   let filename = mk_tmpfile "test" in
@@ -260,8 +260,8 @@ let test_fs_chmod _ =
     let call () = Unix.access filename [R_OK; W_OK; X_OK] in
     assert_raises (Unix.Unix_error(Unix.EACCES, "access", filename)) call
   in
-  let _ = Uv.FS.chmod filename 0o000 ~cb:chmod_callback in
-  let _ = Uv.Loop.run RunDefault in ()
+  !!(Uv.FS.chmod filename 0o000 ~cb:chmod_callback);
+  run ()
 
 let suite =
   "fs_suite">:::
