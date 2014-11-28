@@ -7,6 +7,17 @@ type error = Uv_consts.error
 val error_to_string : error -> string
 (** Error to a human readable message *)
 
+type 'a result = Ok of 'a | Error of error
+
+type status = unit result
+(** Return value for most functions *)
+
+val ok : status
+(** Convenience. Most all functions return Ok ().*)
+
+val ok_exn : 'a result -> 'a
+(** Convenience function. Failswith the error message if not Ok. *)
+
 type timespec = {
   tv_sec : int64;
   tv_nsec : int64 (* TODO what type should these be? *)
@@ -41,11 +52,9 @@ sig
 
   type run_mode = RunDefault | RunOnce | RunNoWait
 
-  val ok : t -> int64
-
   val default_loop : unit -> t
 
-  val run : ?loop:t -> run_mode -> int
+  val run : ?loop:t -> run_mode -> status
 end
 
 module Request :
@@ -98,32 +107,30 @@ sig
   type fs
   type t = fs Request.t
 
-  val openfile : ?loop:Loop.t -> ?perm:int -> cb:(t -> unit) -> string -> int -> t (* TODO unix flags *)
-  val close : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
-  val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> t
-  val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> iobuf -> t
-  val stat : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
-  val fstat : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
-  val lstat : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
-  val unlink : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
-  val mkdir : ?loop:Loop.t -> ?mode:int -> cb:(t -> unit) -> string -> t
-  val mkdtemp : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
-  val rmdir : ?loop:Loop.t -> cb:(t -> unit) -> string -> t
-  val rename : ?loop:Loop.t -> cb:(t -> unit) -> string -> string -> t
-  val fsync : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
-  val fdatasync : ?loop:Loop.t -> cb:(t -> unit) -> int -> t
-  val ftruncate : ?loop:Loop.t -> cb:(t -> unit) -> int -> int -> t
+  val openfile : ?loop:Loop.t -> ?perm:int -> cb:(t -> unit) -> string -> int -> status (* TODO unix flags *)
+  val close : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
+  val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> status
+  val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> iobuf -> status
+  val stat : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val fstat : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
+  val lstat : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val unlink : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val mkdir : ?loop:Loop.t -> ?mode:int -> cb:(t -> unit) -> string -> status
+  val mkdtemp : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val rmdir : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val rename : ?loop:Loop.t -> cb:(t -> unit) -> string -> string -> status
+  val fsync : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
+  val fdatasync : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
+  val ftruncate : ?loop:Loop.t -> cb:(t -> unit) -> int -> int -> status
   val sendfile : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> int ->
-    int -> t
-  val chmod : ?loop:Loop.t -> cb:(t -> unit) -> string -> int -> t
+    int -> status
+  val chmod : ?loop:Loop.t -> cb:(t -> unit) -> string -> int -> status
   (* TODO: scandir *)
 
   (* Accessor functions *)
 
-  type result = Ok of int | Error of error
-
   val buf : t -> iobuf
-  val result : t -> result
+  val result : t -> int result
   val path : t -> string
   val statbuf : t -> stat
   (* TODO statbuf -- should we just let everyone access it? Or try to change the 
