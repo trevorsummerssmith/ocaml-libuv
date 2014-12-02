@@ -111,9 +111,9 @@ sig
   val close : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
   val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> status
   val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> iobuf -> status
-  val stat : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
-  val fstat : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
-  val lstat : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
+  val stat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> string -> status
+  val fstat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> int -> status
+  val lstat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> string -> status
   val unlink : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
   val mkdir : ?loop:Loop.t -> ?mode:int -> cb:(t -> unit) -> string -> status
   val mkdtemp : ?loop:Loop.t -> cb:(t -> unit) -> string -> status
@@ -132,9 +132,6 @@ sig
   val buf : t -> iobuf
   val result : t -> int result
   val path : t -> string
-  val statbuf : t -> stat
-  (* TODO statbuf -- should we just let everyone access it? Or try to change the 
-   signatures for the methods that actually use it? *)
 end
 
 type mysock
