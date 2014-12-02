@@ -335,19 +335,60 @@ struct
     let ret = C.uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
     int_to_status ret
 
+  let statbuf fs =
+    let fs = ocaml_to_c fs in
+    let sb = !@(C.get_uv_fs_t_statbuf fs) in
+    let f conv field = conv (getf sb field) in
+    let i = f Unsigned.UInt64.to_int64 in
+    let t = f from_uv_timespec in
+    let st_dev = i C._st_dev in
+    let st_mode = i C._st_mode in
+    let st_nlink = i C._st_nlink in
+    let st_uid = i C._st_uid in
+    let st_gid = i C._st_gid in
+    let st_rdev = i C._st_rdev in
+    let st_ino = i C._st_ino in
+    let st_size = i C._st_size in
+    let st_blksize = i C._st_blksize in
+    let st_blocks = i C._st_blocks in
+    let st_flags = i C._st_flags in
+    let st_gen = i C._st_gen in
+    let st_atim = t C._st_atim in
+    let st_mtim = t C._st_mtim in
+    let st_ctim = t C._st_ctim in
+    let st_birthtim = t C._st_birthtim in
+    {st_dev; st_mode; st_nlink; st_uid; st_gid; st_rdev; st_ino; st_size;
+     st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
+     st_birthtim}
+
+  let stat_wrapper cb =
+    (* We want the user's callback to receive the stat structure as the second
+       arg. This wraps the user callback and then gets the stat structure.
+       The stat structure is a member of the fs struct, that, in libuv one
+       accesses as a field. However, for most calls this field is null,
+       which is why we're adding this layer of typing. *)
+    let cb' fs =
+      let stat = statbuf fs in
+      cb fs stat
+    in
+    cb'
+
   let stat ?(loop=default_loop) ~cb (filename : string) =
-    let (cb', data) = make_cb_and_data cb in
-    let ret = C.uv_fs_stat loop data filename cb' in (* TODO raise exception *)
+    let cb' = stat_wrapper cb in
+    let (cb'', data) = make_cb_and_data cb' in
+    let ret = C.uv_fs_stat loop data filename cb'' in
     int_to_status ret
 
   let fstat ?(loop=default_loop) ~cb (fd : int) =
-    let (cb', data) = make_cb_and_data cb in
-    let ret = C.uv_fs_fstat loop data fd cb' in
+    let cb' = stat_wrapper cb in
+    let (cb'', data) = make_cb_and_data cb' in
+    let ret = C.uv_fs_fstat loop data fd cb'' in
     int_to_status ret
 
   let lstat ?(loop=default_loop) ~cb (filename : string) =
-    let (cb', data) = make_cb_and_data cb in
-    let ret = C.uv_fs_lstat loop data filename cb' in
+    let cb' = stat_wrapper cb in
+    let (cb'', data) = make_cb_and_data cb' in
+    let ret = C.uv_fs_lstat loop data filename cb'' in
     int_to_status ret
 
   let unlink ?(loop=default_loop) ~cb (filename : string) =
@@ -432,32 +473,6 @@ struct
     let data = getf !@b C._uv_buf_base in (* TODO this assumes there is one buf *)
     let len = getf !@b C._uv_buf_len in
     bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.char data
-
-  let statbuf fs =
-    let fs = ocaml_to_c fs in
-    let sb = !@(C.get_uv_fs_t_statbuf fs) in
-    let f conv field = conv (getf sb field) in
-    let i = f Unsigned.UInt64.to_int64 in
-    let t = f from_uv_timespec in
-    let st_dev = i C._st_dev in
-    let st_mode = i C._st_mode in
-    let st_nlink = i C._st_nlink in
-    let st_uid = i C._st_uid in
-    let st_gid = i C._st_gid in
-    let st_rdev = i C._st_rdev in
-    let st_ino = i C._st_ino in
-    let st_size = i C._st_size in
-    let st_blksize = i C._st_blksize in
-    let st_blocks = i C._st_blocks in
-    let st_flags = i C._st_flags in
-    let st_gen = i C._st_gen in
-    let st_atim = t C._st_atim in
-    let st_mtim = t C._st_mtim in
-    let st_ctim = t C._st_ctim in
-    let st_birthtim = t C._st_birthtim in
-    {st_dev; st_mode; st_nlink; st_uid; st_gid; st_rdev; st_ino; st_size;
-     st_blksize; st_blocks; st_flags; st_gen; st_atim; st_mtim; st_ctim;
-     st_birthtim}
 end
 
 

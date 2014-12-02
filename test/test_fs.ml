@@ -22,8 +22,7 @@ let mkdtemp () : string =
 
 let test_fs_stat _ =
   let filename = mk_tmpfile "hello" in
-  let cb fs =
-    let stats : Uv.stat = Uv.FS.statbuf fs in
+  let cb fs stats =
     assert_equal stats.st_size (Int64.of_int 5);
     (* Hard to say what the create time of the file is but it shouldn't be 0. *)
     assert_not_equal stats.st_birthtim.tv_sec Int64.zero;
@@ -39,8 +38,7 @@ let test_fs_fstat _ =
   let rec open_callback request =
     fd := !!(Uv.FS.result request);
     !!(Uv.FS.fstat !fd ~cb:fstat_callback)
-  and fstat_callback request =
-    let stats = Uv.FS.statbuf request in
+  and fstat_callback request stats =
     assert_equal stats.st_size (Int64.of_int 3);
     !!(Uv.FS.close !fd ~cb:close_callback)
   and close_callback _ =
@@ -54,8 +52,7 @@ let test_fs_lstat _ =
   let tmpdir = mkdtemp () in
   let linkpath = (Filename.concat tmpdir "link") in
   Unix.symlink filename linkpath;
-  let lstat_callback request =
-    let stats = Uv.FS.statbuf request in
+  let lstat_callback request stats =
     assert_not_equal stats.st_size (Int64.of_int 3);
     assert_equal (Uv.FS.path request) linkpath;
     Unix.unlink linkpath;
