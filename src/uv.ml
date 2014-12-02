@@ -472,21 +472,27 @@ module TCP =
 struct
   type tcp
   type t = tcp Stream.t
+  type connect
+  type c = connect Request.t
 
   let alloc_uv_tcp () =
     let memory = allocate_n char ~count:(sizeof C.uv_tcp) in
     coerce (ptr char) (ptr C.uv_tcp) memory
 
+  let alloc_uv_connect () =
+    let memory = allocate_n char ~count:(sizeof C.uv_connect) in
+    coerce (ptr char) (ptr C.uv_connect) memory
+
   let coatCheck = Coat_check.create ()
   (* Stores callback closures and data while in the uv event loop *)
 
   let c_to_ocaml data =
-    (* Convert from the value we pass to uv_* methods to the FS.t method *)
+    (* Convert from the value we pass to uv_* methods to the TCP.t method *)
     to_voidp data
 
   let ocaml_to_c data =
-    (* From FS.t to struct *)
-    from_voidp C.uv_fs data
+    (* From TCP.t to struct *)
+    from_voidp C.uv_tcp data
 
   let make_callback cb data =
     (* There's something kind of subtle here:
@@ -511,11 +517,11 @@ struct
        part of this out so that it could be reused across all methods.
     *)
     let id = Coat_check.ticket coatCheck in
-    let callback cb _uv_tcp =
+    let callback cb _uv_connect _status =
       let finally () = Coat_check.forget coatCheck id in
-      let fs = c_to_ocaml _uv_tcp in
+      let connect = c_to_ocaml _uv_connect in
       (* If we get an exception clear gc ref and re-raise *)
-      let _ =  try cb fs with exn -> finally (); raise exn in
+      let _ =  try cb connect _status with exn -> finally (); raise exn in
       finally ()
     in
     let storage = (callback, data) in
@@ -538,4 +544,11 @@ struct
     let tcp_ptr = from_voidp C.uv_tcp tcp in
     let ret = C.uv_tcp_bind tcp_ptr sockaddr (Unsigned.UInt.of_int flags) in (* TODO exn *)
     int_to_status ret
+
+  let connect tcp (sockaddr : mysock) ~cb =
+    let connect = alloc_uv_connect () in
+    let (cb', data) = make_cb_and_data cb in
+    let ret = C.uv_tcp_connect connect data sockaddr cb' in
+    int_to_status ret
+
 end

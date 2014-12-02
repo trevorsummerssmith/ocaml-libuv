@@ -144,7 +144,10 @@ module TCP :
 sig
   type tcp
   type t = tcp Stream.t
+  type connect
+  type c = connect Request.t
 
   val init : ?loop:Loop.t -> unit -> t
-  val bind : t -> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> status
+  val bind : t-> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> status
+  val connect : t -> mysock -> cb:(c -> int -> unit) -> status
 end

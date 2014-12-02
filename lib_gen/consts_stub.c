@@ -92,6 +92,7 @@ void consts (FILE *fd) {
 
     /* Size of structs (because their sizes are platform dependent) */
     size_of(uv_fs_t);
+    size_of(uv_connect_t);
 
 }
 
