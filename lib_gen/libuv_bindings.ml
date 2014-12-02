@@ -102,10 +102,6 @@ struct
   type uv_write_t
   let uv_write_t : uv_write_t structure typ = structure "uv_write_s"
 
-  (* uv_connect *)
-  type uv_connect
-  let uv_connect : uv_connect structure typ = structure "uv_connect_s"
-
   (* Callbacks *)
   let uv_connection_cb = ptr uv_stream @-> int @-> returning void
   (* Platform specific callbacks (Unix) *)
@@ -129,6 +125,14 @@ struct
     (cb, pending_queue, watcher_queue, pevents, events, fd, rcount, wcount)
   let _ = make_uv__io_fields uv__io
   let () = seal uv__io
+
+  let abstr name size = abstract ~name:name ~size:size ~alignment:4
+      (* TODO(tss) figure out alignment *)
+
+  (* uv_connect *)
+  type uv_connect
+  let uv_connect : uv_connect abstract typ = abstr "uv_connect_t" Uv_consts.size_of_uv_connect_t
+  let uv_connect_cb = ptr uv_connect @-> int @-> returning void
 
   let add_stream_fields s =
     let ( -: ) ty label = field s label ty in
@@ -227,19 +231,6 @@ struct
   let _ = add_write_req_fields uv_write_t
   let () = seal uv_write_t
 
-  (* uv_connect *)
-  let uv_connect_cb = ptr uv_connect @-> ptr uv_stream @-> int @-> returning void
-  let _ = add_req_fields uv_connect
-  let _connect_cb = field uv_connect "cb" (Foreign.funptr uv_connect_cb)
-  let _handle = field uv_connect "handle" (ptr uv_stream)
-  (* UV_CONNECT_PRIVATE_FIELDS unix TODO *)
-  let _queue = field uv_connect "queue" (array 2 (ptr void))
-  (* END *)
-  let () = seal uv_connect
-
-  let abstr name size = abstract ~name:name ~size:size ~alignment:4
-      (* TODO(tss) figure out alignment *)
-
   (* uv_fs *)
   type uv_fs
   let uv_fs : uv_fs abstract typ = abstr "uv_fs_t" Uv_consts.size_of_uv_fs_t
@@ -304,6 +295,10 @@ struct
 
   let uv_tcp_bind = F.foreign "uv_tcp_bind"
       (ptr uv_tcp @-> ptr uv_sockaddr @-> uint @-> returning int)
+
+  let uv_tcp_connect = F.foreign "uv_tcp_connect"
+      (ptr uv_connect @-> ptr uv_tcp @-> ptr uv_sockaddr @->
+       Foreign.funptr uv_connect_cb @-> returning int)
 
   (* uv_loop functions *)
   let uv_default_loop = F.foreign "uv_default_loop" (void @-> returning uv_loop)
