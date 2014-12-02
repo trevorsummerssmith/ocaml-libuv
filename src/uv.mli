@@ -146,5 +146,5 @@ sig
   type t = tcp Stream.t
 
   val init : ?loop:Loop.t -> unit -> t
-  val bind : t -> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> unit
+  val bind : t -> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> status
 end

@@ -473,6 +473,61 @@ struct
   type tcp
   type t = tcp Stream.t
 
+  let alloc_uv_tcp () =
+    let memory = allocate_n char ~count:(sizeof C.uv_tcp) in
+    coerce (ptr char) (ptr C.uv_tcp) memory
+
+  let coatCheck = Coat_check.create ()
+  (* Stores callback closures and data while in the uv event loop *)
+
+  let c_to_ocaml data =
+    (* Convert from the value we pass to uv_* methods to the FS.t method *)
+    to_voidp data
+
+  let ocaml_to_c data =
+    (* From FS.t to struct *)
+    from_voidp C.uv_fs data
+
+  let make_callback cb data =
+    (* There's something kind of subtle here:
+       we need to pass the Ocaml user's callback function (cb) to libuv, so
+       we'll need to wrap the user's function in a method that converts the
+       ctype passed to the callback into an OCaml value. Call the ctype
+       callback (ie the actual callback called by libuv cb').
+       So basically this look likes:
+
+       let cb' arg = cb(make_ctype_into_ocaml_type(arg))
+
+       However we don't want that callback, nor the ocaml-allocated data
+       to get gc'd before it is called.
+       So we keep track of the callbacks (cb' mind you) and data in a coat
+       check. We add cb' to the coat check right before passing it to libuv.
+       And we remove cb' from the coat check right after calling the user's
+       callback, cb.
+
+       make_callback, does all of that. Looks a little dense, not so bad.
+
+       TODO I would like to think of a way to abstract the gc-avoidance
+       part of this out so that it could be reused across all methods.
+    *)
+    let id = Coat_check.ticket coatCheck in
+    let callback cb _uv_tcp =
+      let finally () = Coat_check.forget coatCheck id in
+      let fs = c_to_ocaml _uv_tcp in
+      (* If we get an exception clear gc ref and re-raise *)
+      let _ =  try cb fs with exn -> finally (); raise exn in
+      finally ()
+    in
+    let storage = (callback, data) in
+    Coat_check.store coatCheck id storage;
+    callback cb
+
+  let make_cb_and_data cb =
+    (* Allocate the data and return the life-cycle'd cb. *)
+    let data = alloc_uv_tcp () in
+    let cb' = make_callback cb data in
+    (cb', data)
+
   let init ?(loop=default_loop) () : t =
     let data = addr (make C.uv_tcp) in
     let _ = C.uv_tcp_init loop data in (* TODO exn *)
@@ -481,6 +536,6 @@ struct
   let bind tcp (sockaddr : mysock) flags =
     (* tcp is a void ptr *)
     let tcp_ptr = from_voidp C.uv_tcp tcp in
-    let _ = C.uv_tcp_bind tcp_ptr sockaddr (Unsigned.UInt.of_int flags) in (* TODO exn *)
-    () (* TODO return type? *)
+    let ret = C.uv_tcp_bind tcp_ptr sockaddr (Unsigned.UInt.of_int flags) in (* TODO exn *)
+    int_to_status ret
 end
