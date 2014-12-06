@@ -26,7 +26,7 @@ let on_new_conn (server : 'a Stream.t) (status : int) : unit =
     let client = TCP.init () in
     match Stream.accept server client with
     | _ -> Stream.read_start ~cb:echo_read client
-    | exception _ -> Handle.close client
+    (* TODO: handle exceptions *)
 
 let make_sockaddr () = ip4_addr "0.0.0.0" server_port
 
