@@ -528,12 +528,6 @@ struct
     Coat_check.store coatCheck id storage;
     callback cb
 
-  let make_cb_and_data cb =
-    (* Allocate the data and return the life-cycle'd cb. *)
-    let data = alloc_uv_tcp () in
-    let cb' = make_callback cb data in
-    (cb', data)
-
   let init ?(loop=default_loop) () : t =
     let data = addr (make C.uv_tcp) in
     let _ = C.uv_tcp_init loop data in (* TODO exn *)
@@ -547,8 +541,8 @@ struct
 
   let connect tcp (sockaddr : mysock) ~cb =
     let connect = alloc_uv_connect () in
-    let (cb', data) = make_cb_and_data cb in
-    let ret = C.uv_tcp_connect connect data sockaddr cb' in
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let cb' = make_callback cb connect in
+    let ret = C.uv_tcp_connect connect tcp_ptr sockaddr cb' in
     int_to_status ret
-
 end
