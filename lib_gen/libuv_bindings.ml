@@ -300,6 +300,24 @@ struct
       (ptr uv_connect @-> ptr uv_tcp @-> ptr uv_sockaddr @->
        Foreign.funptr uv_connect_cb @-> returning int)
 
+  let uv_tcp_nodelay = F.foreign "uv_tcp_nodelay"
+      (ptr uv_tcp @-> int @-> returning int)
+
+  let uv_tcp_keepalive = F.foreign "uv_tcp_keepalive"
+      (ptr uv_tcp @-> int @-> uint @-> returning int)
+
+  let uv_tcp_simultaneous_accepts = F.foreign "uv_tcp_simultaneous_accepts"
+      (ptr uv_tcp @-> int @-> returning int)
+
+  let uv_tcp_getsockname = F.foreign "uv_tcp_getsockname"
+      (ptr uv_tcp @-> ptr uv_sockaddr @-> ptr int @-> returning int)
+
+  let uv_tcp_getpeername = F.foreign "uv_tcp_getpeername"
+      (ptr uv_tcp @-> ptr uv_sockaddr @-> ptr int @-> returning int)
+
+  let uv_tcp_open = F.foreign "uv_tcp_open"
+      (ptr uv_tcp @-> int @-> returning int)
+
   (* uv_loop functions *)
   let uv_default_loop = F.foreign "uv_default_loop" (void @-> returning uv_loop)
 
