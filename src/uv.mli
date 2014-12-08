@@ -138,6 +138,7 @@ sig
 end
 
 type mysock
+type myossock
 val ip4_addr : string -> int -> mysock
 
 module TCP :
@@ -150,4 +151,10 @@ sig
   val init : ?loop:Loop.t -> unit -> t
   val bind : t-> mysock (* TODO sockaddr *) -> int (* TODO flags*) -> status
   val connect : t -> mysock -> cb:(c -> int -> unit) -> status
+  val nodelay : t -> int -> status
+  val keepalive : t -> int -> Unsigned.uint -> status
+  val simultaneous_accepts : t -> int -> status
+  val getsockname : t -> mysock -> status
+  val getpeername : t -> mysock -> status
+  val open_socket : t -> myossock -> status
 end

@@ -468,6 +468,8 @@ let ip4_addr str_addr port =
   let _ = C.uv_ip4_addr str_addr port data in (* TODO exn *)
   coerce (ptr C.uv_sockaddr_in) (ptr C.uv_sockaddr) data
 
+type myossock = int
+
 module TCP =
 struct
   type tcp
@@ -544,5 +546,37 @@ struct
     let tcp_ptr = from_voidp C.uv_tcp tcp in
     let cb' = make_callback cb connect in
     let ret = C.uv_tcp_connect connect tcp_ptr sockaddr cb' in
+    int_to_status ret
+
+  let nodelay tcp enable =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let ret = C.uv_tcp_nodelay tcp_ptr enable in
+    int_to_status ret
+
+  let keepalive tcp enable delay =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let ret = C.uv_tcp_keepalive tcp_ptr enable delay in
+    int_to_status ret
+
+  let simultaneous_accepts tcp enable =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let ret = C.uv_tcp_simultaneous_accepts tcp_ptr enable in
+    int_to_status ret
+
+  let getsockname tcp (sockaddr: mysock) =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let length_ptr = allocate int 0 in
+    let ret = C.uv_tcp_getsockname tcp_ptr sockaddr length_ptr in
+    int_to_status ret
+
+  let getpeername tcp (sockaddr: mysock) =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let length_ptr = allocate int 0 in
+    let ret = C.uv_tcp_getpeername tcp_ptr sockaddr length_ptr in
+    int_to_status ret
+
+  let open_socket tcp sock =
+    let tcp_ptr = from_voidp C.uv_tcp tcp in
+    let ret = C.uv_tcp_open tcp_ptr sock in
     int_to_status ret
 end
