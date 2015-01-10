@@ -133,8 +133,6 @@ sig
   (* TODO: scandir *)
 
   (* Accessor functions *)
-
-  val buf : t -> iobuf
   val result : t -> int result
   val path : t -> string
 end

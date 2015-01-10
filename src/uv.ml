@@ -473,15 +473,6 @@ struct
   let path fs =
     let fs = ocaml_to_c fs in
     C.get_uv_fs_t_path fs
-
-  let buf fs =
-    (* TODO this will get nixed soon bcause it is not part of the
-       public interface *)
-    let fs = ocaml_to_c fs in
-    let b = C.get_uv_fs_t_bufs fs in
-    let data = getf !@b C._uv_buf_base in (* TODO this assumes there is one buf *)
-    let len = getf !@b C._uv_buf_len in
-    bigarray_of_ptr array1 (Unsigned.Size_t.to_int len) Bigarray.char data
 end
 
 
