@@ -21,6 +21,9 @@ let int_to_status = function
   | i when i < 0 -> Error (Uv_consts.int_to_error i)
   | _ -> failwith "This should never happen. Status code returned > 0."
 
+external caml_c_thread_register : unit -> int = "caml_c_thread_register"
+(* See DEVEL.md for more information *)
+
 module C = Libuv_bindings.C(Libuv_generated)
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -280,11 +283,16 @@ struct
 
        make_callback, does all of that. Looks a little dense, not so bad.
 
+       This method also registers the thread with the ocaml subsystem.
+       See more comments in DEVEL.md
+
        TODO I would like to think of a way to abstract the gc-avoidance
        part of this out so that it could be reused across all methods.
     *)
     let id = Coat_check.ticket coatCheck in
     let callback cb _uv_fs =
+      (* Register the thread first thing. Ignore its return code. *)
+      let _ = caml_c_thread_register () in
       let finally () = Coat_check.forget coatCheck id in
       let fs = c_to_ocaml _uv_fs in
       (* If we get an exception clear gc ref and re-raise *)
