@@ -8,6 +8,8 @@ let ( !! ) r = ok_exn r
 
 let run () = !! (Loop.run Loop.RunDefault)
 
+let mk_buf () = Bigarray.(Array1.create char c_layout 1024)
+
 let mk_tmpfile contents : string =
   let (tmpfile_name, chan) = Filename.open_temp_file "foo" "txt" in
   output_string chan contents;
@@ -67,10 +69,10 @@ let test_fs_read _ =
   let filename = mk_tmpfile test_string in
   let fd = ref 0 in
   let rec open_callback request =
+    let buf = mk_buf () in
     fd := !! (Uv.FS.result request);
-    !!(Uv.FS.read !fd ~cb:read_callback)
-  and read_callback request =
-    let buf = Uv.FS.buf request in
+    !!(Uv.FS.read !fd ~cb:read_callback buf)
+  and read_callback request buf =
     !!(Uv.FS.close !fd ~cb:(fun _ -> Unix.unlink filename));
     assert_equal (Util.of_bigarray buf) "test"
   in
@@ -89,7 +91,8 @@ let test_fs_write _ =
     let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "test") in
     !!(Uv.FS.write !fd buf ~cb:write_callback)
-  and write_callback _ =
+  and write_callback _ buf =
+    assert_equal "test" (Util.of_bigarray buf);
     !!(Uv.FS.close !fd ~cb:close_callback)
   and close_callback _ =
     let input_channel = open_in filename in
@@ -171,7 +174,7 @@ let test_fs_fsync _ =
     let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfsync") in
     !! (Uv.FS.write !fd buf ~cb:write_callback)
-  and write_callback _ =
+  and write_callback _ _ =
     !! (Uv.FS.fsync !fd ~cb:fsync_callback)
   and fsync_callback _ =
     let fs_after = Unix.stat filename in
@@ -191,7 +194,7 @@ let test_fs_fdatasync _ =
     let () = fd := !! (Uv.FS.result request) in
     let buf = (Util.to_bigarray "testfdatasync") in
     !!(Uv.FS.write !fd buf ~cb:write_callback)
-  and write_callback _ =
+  and write_callback _ _ =
     !!(Uv.FS.fdatasync !fd ~cb:fdatasync_callback)
   and fdatasync_callback _ =
     let fs_after = Unix.stat filename in

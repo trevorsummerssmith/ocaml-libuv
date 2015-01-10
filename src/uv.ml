@@ -25,6 +25,16 @@ module C = Libuv_bindings.C(Libuv_generated)
 
 type iobuf = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
+let make_buft buf =
+  (* Note we return the struct and not the address because we need to
+     keep a reference to the allocated struct during the callback *)
+  let buf_data = make C.uv_buf in
+  let buf_ptr = bigarray_start array1 buf in
+  let buf_len = Bigarray.Array1.dim buf in
+  let () = setf buf_data C._uv_buf_base buf_ptr in
+  let () = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
+  buf_data
+
 type timespec = {
   tv_sec : int64;
   tv_nsec : int64 (* TODO what type should these be? *)
@@ -212,16 +222,8 @@ struct
     let _ = C.uv_read_start stream_ptr alloc_cb cb' in (* TODO exn *)
     ()
 
-  let make_buf_t buf =
-    let buf_data = make C.uv_buf in
-    let buf_ptr = bigarray_start array1 buf in
-    let buf_len = Bigarray.Array1.dim buf in
-    let _ = setf buf_data C._uv_buf_base buf_ptr in
-    let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
-    addr buf_data
-
   let write ?cb stream buf =
-    let uv_buf_ptr = make_buf_t buf in
+    let uv_buf_ptr = addr (make_buft buf) in
     let nbufs = Unsigned.UInt.one in
     let req = addr (make C.uv_write_t) in
     (* convert from void *)
@@ -259,7 +261,7 @@ struct
     let memory = allocate_n char ~count:(sizeof C.uv_fs) in
     coerce (ptr char) (ptr C.uv_fs) memory
 
-  let make_callback cb data =
+  let make_callback cb (data : 'a) =
     (* There's something kind of subtle here:
        we need to pass the Ocaml user's callback function (cb) to libuv, so
        we'll need to wrap the user's function in a method that converts the
@@ -299,6 +301,12 @@ struct
     let cb' = make_callback cb data in
     (cb', data)
 
+  let make_cb_and_data_rw cb buft =
+    (* Allocate the data and return the life-cycle'd cb. *)
+    let data = alloc_uv_fs () in
+    let cb' = make_callback cb (data, buft) in
+    (cb', data)
+
   let openfile ?(loop=default_loop) ?(perm=0o644) ~cb (filename : string) flags  =
     let (cb', data) = make_cb_and_data cb in
     let ret = C.uv_fs_open loop data filename flags perm cb' in
@@ -309,31 +317,24 @@ struct
     let ret = C.uv_fs_close loop data file cb' in
     int_to_status ret
 
-  let read ?(loop=default_loop) ?(offset=(-1)) ~cb file = (* TODO what should offset be? *)
-    let (cb', data) = make_cb_and_data cb in
-    (* Allocate read buffer *)
-    let buf_len = 1024 in
-    let buf = Bigarray.(Array1.create char c_layout buf_len) in
-    let buf_ptr = bigarray_start array1 buf in
-    let buf_data = make C.uv_buf in
-    let _ = setf buf_data C._uv_buf_base buf_ptr in
-    let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
-    let arr = CArray.make C.uv_buf 1 in
-    let _ = CArray.set arr 0 buf_data in  (* TODO may be able to make this simpler *)
-    let ret = C.uv_fs_read loop data file (CArray.start arr) 1 (Signed.Long.of_int offset) cb' in
+  let rw f ?(loop=default_loop) ?(offset=0) ~cb file buf =
+    (* read and write functions are exactly the same, save for the
+       actual call. This implements the body of both.
+
+       1) Wrap the user's callback so we provide the buffer back to them.
+       2) Keep a reference to the callback, fs struct, buf and
+       buf_t struct to avoid gc. *)
+    let cb' fs = cb fs buf in
+    let buft = make_buft buf in
+    let (cb'', data) = make_cb_and_data_rw cb' buft in
+    let ret = f loop data file (addr buft) 1 (Signed.Long.of_int offset) cb'' in
     int_to_status ret
 
-  let write ?(loop=default_loop) ?(offset=(-1)) ~cb file buf = (* TODO offset, bufs *)
-    let (cb', data) = make_cb_and_data cb in
-    (* Allocate buf_t structure *)
-    let buf_ptr = bigarray_start array1 buf in
-    let buf_data = make C.uv_buf in
-    let _ = setf buf_data C._uv_buf_base buf_ptr in
-    let buf_len = Bigarray.Array1.dim buf in
-    let _ = setf buf_data C._uv_buf_len (Unsigned.Size_t.of_int buf_len) in
-    (* TODO just passing a single guy here... *)
-    let ret = C.uv_fs_write loop data file (addr buf_data) 1 (Signed.Long.of_int offset) cb' in
-    int_to_status ret
+  let read ?(loop=default_loop) ?(offset=(-1)) ~cb file buf =
+    rw C.uv_fs_read ~loop ~offset ~cb file buf
+
+  let write ?(loop=default_loop) ?(offset=(-1)) ~cb file buf =
+    rw C.uv_fs_write ~loop ~offset ~cb file buf
 
   let statbuf fs =
     let fs = ocaml_to_c fs in

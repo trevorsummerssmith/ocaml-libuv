@@ -109,8 +109,13 @@ sig
 
   val openfile : ?loop:Loop.t -> ?perm:int -> cb:(t -> unit) -> string -> int -> status (* TODO unix flags *)
   val close : ?loop:Loop.t -> cb:(t -> unit) -> int -> status
-  val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> status
-  val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> unit) -> int -> iobuf -> status
+
+  val read : ?loop:Loop.t -> ?offset:int -> cb:(t -> iobuf -> unit) -> int -> iobuf -> status
+  (** offset defaults to -1 which is use current offset. *)
+
+  val write : ?loop:Loop.t -> ?offset:int -> cb:(t -> iobuf -> unit) -> int -> iobuf -> status
+  (** offset defaults to -1 which is use current offset. *)
+
   val stat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> string -> status
   val fstat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> int -> status
   val lstat : ?loop:Loop.t -> cb:(t -> stat -> unit) -> string -> status
