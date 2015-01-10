@@ -20,6 +20,11 @@ struct
 
   (* types first, then callbacks, then structure fields *)
 
+  (* Get the size of all of the types to be used to allocate them.
+     We'll probably replace this soon with constants. *)
+  let uv_handle_size = F.foreign "uv_handle_size" (int @-> returning size_t)
+  let uv_req_size = F.foreign "uv_req_size" (int @-> returning size_t)
+
   (* TODO figure out what to do with this?*)
   type uv_sockaddr
   let uv_sockaddr : uv_sockaddr structure typ = structure "sockaddr"
@@ -97,10 +102,6 @@ struct
   type uv_write_t
   let uv_write_t : uv_write_t structure typ = structure "uv_write_s"
 
-  (* uv_connect *)
-  type uv_connect
-  let uv_connect : uv_connect structure typ = structure "uv_connect_s"
-
   (* Callbacks *)
   let uv_connection_cb = ptr uv_stream @-> int @-> returning void
   (* Platform specific callbacks (Unix) *)
@@ -124,6 +125,14 @@ struct
     (cb, pending_queue, watcher_queue, pevents, events, fd, rcount, wcount)
   let _ = make_uv__io_fields uv__io
   let () = seal uv__io
+
+  let abstr name size = abstract ~name:name ~size:size ~alignment:4
+      (* TODO(tss) figure out alignment *)
+
+  (* uv_connect *)
+  type uv_connect
+  let uv_connect : uv_connect abstract typ = abstr "uv_connect_t" Uv_consts.size_of_uv_connect_t
+  let uv_connect_cb = ptr uv_connect @-> int @-> returning void
 
   let add_stream_fields s =
     let ( -: ) ty label = field s label ty in
@@ -164,18 +173,6 @@ struct
   let _tv_sec = field uv_timespec "tv_sec" long
   let _tv_nsec = field uv_timespec "tv_nsec" long
   let () = seal uv_timespec
-
-  (* uv__work *)
-  type uv__work (* we'll keep their convention of 2 underscores? *)
-  let uv__work : uv__work structure typ = structure "uv__work"
-  let uv__work_work_cb = ptr uv__work @-> returning void
-  let uv__work_done_cb = ptr uv__work @-> int @-> returning void
-
-  let uv__work_work = field uv__work "work" (Foreign.funptr uv__work_work_cb)
-  let uv__work_done = field uv__work "done" (Foreign.funptr uv__work_done_cb)
-  let uv__work_loop = field uv__work "loop" uv_loop
-  let uv__work_wq = field uv__work "wq" (array 2 (ptr void))
-  let () = seal uv__work
 
   (* uv_stat *)
   type uv_stat
@@ -234,49 +231,12 @@ struct
   let _ = add_write_req_fields uv_write_t
   let () = seal uv_write_t
 
-  (* uv_connect *)
-  let uv_connect_cb = ptr uv_connect @-> ptr uv_stream @-> int @-> returning void
-  let _ = add_req_fields uv_connect
-  let _connect_cb = field uv_connect "cb" (Foreign.funptr uv_connect_cb)
-  let _handle = field uv_connect "handle" (ptr uv_stream)
-  (* UV_CONNECT_PRIVATE_FIELDS unix TODO *)
-  let _queue = field uv_connect "queue" (array 2 (ptr void))
-  (* END *)
-  let () = seal uv_connect
-
   (* uv_fs *)
   type uv_fs
-  let uv_fs : uv_fs structure typ = structure "uv_fs_s"
+  let uv_fs : uv_fs abstract typ = abstr "uv_fs_t" Uv_consts.size_of_uv_fs_t
+  (* When we need one of these we allocate a char array of sizeof(uv_fs) then
+     coerce it to this type. *)
   let uv_fs_cb = ptr uv_fs @-> returning void
-
-  let ( -: ) ty label = field uv_fs label ty
-  let _data          = ptr void -: "data"
-  let _uv_req_type   = long -: "type"
-  let _active_queue  = (array 2 (ptr void)) -: "active_queue"
-  let _reserved     = (array 4 (ptr void)) -: "reserved"
-  let _fs_type       = long -: "fs_type"
-  let _uv_fs_uv_loop = uv_loop -: "loop"
-  let _cb            = Foreign.funptr uv_fs_cb -: "cb"
-  let _result        = PosixTypes.ssize_t -: "result"
-  let _uv_fs_ptr     = ptr void -: "ptr"
-  let _path          = string -: "path"
-  let _statbuf       = uv_stat -: "statbuf"
-  (* UV_FS_PRIVATE_FIELDS for Unix below *)
-  let _new_path      = string -: "new_path"
-  let _file          = int -: "file" (* TODO type is platform dependent *)
-  let _flags         = int -: "flags"
-  let _mode          = PosixTypes.mode_t -: "mode"
-  let _nbufs         = uint -: "nbufs"
-  let _bufs          = ptr uv_buf -: "bufs"
-  let _off           = PosixTypes.off_t -: "off"
-  let _uid           = PosixTypes.uid_t -: "uid"
-  let _gid           = PosixTypes.gid_t -: "gid"
-  let _atime         = double -: "atime"
-  let _mtime         = double -: "mtime"
-  let _work_req      = uv__work -: "work_req"
-  let _bufsml        = (array 4 uv_buf) -: "bufsml"
-  (* end UV_FS_PRIVATE_FIELDS *)
-  let () = seal uv_fs
 
   (* uv_dirent *)
   type uv_dirent
@@ -288,6 +248,25 @@ struct
   let () = seal uv_dirent
 
   (* Begin functions *)
+
+  (* Accessors *)
+  let get_uv_handle_t_loop = F.foreign "get_uv_handle_t_loop"
+      (ptr uv_handle @-> returning uv_loop)
+
+  let get_uv_fs_t_loop = F.foreign "get_uv_fs_t_loop"
+      (ptr uv_fs @-> returning uv_loop)
+
+  let get_uv_fs_t_result = F.foreign "get_uv_fs_t_result"
+      (ptr uv_fs @-> returning PosixTypes.ssize_t)
+
+  let get_uv_fs_t_path = F.foreign "get_uv_fs_t_path"
+      (ptr uv_fs @-> returning string)
+
+  let get_uv_fs_t_bufs = F.foreign "get_uv_fs_t_bufs"
+      (ptr uv_fs @-> returning (ptr uv_buf)) (* XXX TMP going to nix this. *)
+
+  let get_uv_fs_t_statbuf = F.foreign "get_uv_fs_t_statbuf"
+      (ptr uv_fs @-> returning (ptr uv_stat))(* XXX TMP going to nix this. *)
 
   (* uv_handle functions *)
   let uv_close = F.foreign "uv_close"
@@ -317,6 +296,28 @@ struct
   let uv_tcp_bind = F.foreign "uv_tcp_bind"
       (ptr uv_tcp @-> ptr uv_sockaddr @-> uint @-> returning int)
 
+  let uv_tcp_connect = F.foreign "uv_tcp_connect"
+      (ptr uv_connect @-> ptr uv_tcp @-> ptr uv_sockaddr @->
+       Foreign.funptr uv_connect_cb @-> returning int)
+
+  let uv_tcp_nodelay = F.foreign "uv_tcp_nodelay"
+      (ptr uv_tcp @-> int @-> returning int)
+
+  let uv_tcp_keepalive = F.foreign "uv_tcp_keepalive"
+      (ptr uv_tcp @-> int @-> uint @-> returning int)
+
+  let uv_tcp_simultaneous_accepts = F.foreign "uv_tcp_simultaneous_accepts"
+      (ptr uv_tcp @-> int @-> returning int)
+
+  let uv_tcp_getsockname = F.foreign "uv_tcp_getsockname"
+      (ptr uv_tcp @-> ptr uv_sockaddr @-> ptr int @-> returning int)
+
+  let uv_tcp_getpeername = F.foreign "uv_tcp_getpeername"
+      (ptr uv_tcp @-> ptr uv_sockaddr @-> ptr int @-> returning int)
+
+  let uv_tcp_open = F.foreign "uv_tcp_open"
+      (ptr uv_tcp @-> int @-> returning int)
+
   (* uv_loop functions *)
   let uv_default_loop = F.foreign "uv_default_loop" (void @-> returning uv_loop)
 
@@ -328,112 +329,112 @@ struct
 
   let uv_fs_close = F.foreign "uv_fs_close"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_open = F.foreign "uv_fs_open"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       int @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_read = F.foreign "uv_fs_read"
       (uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf @->
-       int @-> long @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> long @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_unlink = F.foreign "uv_fs_unlink"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_write = F.foreign "uv_fs_write"
       (uv_loop @-> ptr uv_fs @-> int @-> ptr uv_buf @->
-       int @-> long @-> Foreign.funptr_opt uv_fs_cb @-> returning int)
+       int @-> long @-> Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_mkdir = F.foreign "uv_fs_mkdir"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_mkdtemp = F.foreign "uv_fs_mkdtemp"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_rmdir = F.foreign "uv_fs_rmdir"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   (* Scandir is not present until 1.0.0, which I don't have installed.
    * let uv_fs_scandir = F.foreign "uv_fs_scandir"
    *     (uv_loop @-> ptr uv_fs @-> string @-> int @->
-   *      Foreign.funptr_opt uv_fs_cb @-> returning int)
+   *      Foreign.funptr uv_fs_cb @-> returning int)
    *
    * let uv_fs_scandir_next = F.foreign "uv_fs_scandir_next"
    *     (ptr uv_fs @-> ptr uv_dirent @-> returning int) *)
 
   let uv_fs_stat = F.foreign "uv_fs_stat"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fstat = F.foreign "uv_fs_fstat"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_lstat = F.foreign "uv_fs_lstat"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_rename = F.foreign "uv_fs_rename"
       (uv_loop @-> ptr uv_fs @-> string @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fsync = F.foreign "uv_fs_fsync"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fdatasync = F.foreign "uv_fs_fdatasync"
       (uv_loop @-> ptr uv_fs @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_ftruncate = F.foreign "uv_fs_ftruncate"
       (uv_loop @->ptr uv_fs @-> int @-> int64_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_sendfile = F.foreign "uv_fs_sendfile"
       (uv_loop @-> ptr uv_fs @-> int @-> int @->
        int64_t @-> size_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_chmod = F.foreign "uv_fs_chmod"
       (uv_loop @-> ptr uv_fs @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fchmod = F.foreign "uv_fs_fchmod"
       (uv_loop @-> ptr uv_fs @-> int @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_utime = F.foreign "uv_fs_utime"
       (uv_loop @-> ptr uv_fs @-> string @-> double @-> double @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_futime = F.foreign "uv_fs_futime"
       (uv_loop @-> ptr uv_fs @-> int @-> double @-> double @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_link = F.foreign "uv_fs_link"
       (uv_loop @-> ptr uv_fs @-> string @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_symlink = F.foreign "uv_fs_symlink"
       (uv_loop @-> ptr uv_fs @-> string @-> string @-> int @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_readlink = F.foreign "uv_fs_readlink"
       (uv_loop @-> ptr uv_fs @-> string @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_chown = F.foreign "uv_fs_chown"
       (uv_loop @-> ptr uv_fs @-> string @->
        PosixTypes.uid_t @-> PosixTypes.gid_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 
   let uv_fs_fchown = F.foreign "uv_fs_fchown"
       (uv_loop @-> ptr uv_fs @-> int @->
        PosixTypes.uid_t @-> PosixTypes.gid_t @->
-       Foreign.funptr_opt uv_fs_cb @-> returning int)
+       Foreign.funptr uv_fs_cb @-> returning int)
 end
