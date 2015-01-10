@@ -1,5 +1,8 @@
 S .
 S src
+S lib_gen
 B _build
+B _build/src
+B _build/lib_gen
 PKG ounit
 PKG ctypes
