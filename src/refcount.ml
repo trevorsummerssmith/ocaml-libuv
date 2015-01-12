@@ -1,3 +1,11 @@
+(*
+ * Copyright (c) 2014-2015 Trevor Summers Smith <trevorsummerssmith@gmail.com>,
+ *                         Zachary Newman <znewman01@gmail.com>
+ *
+ * This file is distributed under the terms of the MIT License.
+ * See the file LICENSE for details.
+ *)
+
 type 'a t = ('a, int) Hashtbl.t
 
 let create () = Hashtbl.create 10 (* TODO figure out what this should be *)
